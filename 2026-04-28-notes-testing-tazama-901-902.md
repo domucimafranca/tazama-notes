@@ -99,6 +99,10 @@ curl -s -X GET "http://localhost:5100/v1/admin/configuration/rule/902%401.0.0/1.
 ```
 
 ## Prepopulating the database
+
+> Update (2026-04-29)
+> This step may not be necessary after all.  After more testing, it looks like sending a pacs.008 message already performs an upsert into the account and entities tables, which would then satisfy the requirements for its corresponding pacs.002 message.  I will post a follow up note with more details on this.
+
 Since we're following the Postman collection, the starting point is to prepopulate the database with accounts; else the transactions will fail on account of integrity checks.
 
 The following command is executed via Hasura.
