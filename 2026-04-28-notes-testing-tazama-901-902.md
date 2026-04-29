@@ -142,12 +142,7 @@ mutation SeedPOCData {
 
 Basically, it creates entities and accounts and links them together.  
 
-Unfortunately in the current configuration, Tazama will reject messages without the corresponding entities and accounts.  There is supposedly another way to process entities and accounts as they come in, that requires setting auto-provisioning to true.
-
-```
-AUTO_PROVISION_ENTITIES=true
-AUTO_PROVISION_ACCOUNTS=true
-```
+Unfortunately in the current configuration, Tazama will reject messages without the corresponding entities and accounts.  **TO-DO**: Figure out how auto-provisioning of accounts and entities works in Tazama.
 
 ## Sending pacs.008 and pacs.002 messages
 In the default example, pacs.008 and pacs.002 must be sent in pairs (I first tried with just pacs.002 messages but it failed.)  
@@ -534,7 +529,7 @@ Guessing at the intent of the Tazama team by the way the demo and the Postman co
 
 NATS is a new component to me, and I quickly equated it to Kafka.  It seems however that this is not exactly so.  NATS is used as a real-time bus but its default configuration does not have storage (like Kafka) unless used with Jetstream. So we still go back to Postgres/Hasura for the audit trail.
 
-Lastly, the `DataCache` portion in both pacs.008 and pacs.002 JSON messages is an important one as it provides a fast way for Tazama to read the relevant portions of the message, without having to traverse through the complex tree of the full ISO20022 message.  *This is a design choice acting as a standardized interface for messages.* The data here is leaner and simpler to understand.
+Lastly, the `DataCache` portion in both pacs.008 and pacs.002 JSON messages is an important one as it provides a fast way for Tazama to read the relevant portions of the message, without having to traverse through the complex tree of the full ISO20022 message.  *This is a design choice acting as a standardized interface for messages (Gemini).* The data here is leaner and simpler to understand.
 
 Rule 901 and 902 do not actually "read" the ISO 20022 tree; they read the DataCache. This allows the same rule to work for a pacs.008, a pacs.002, or even a non-ISO message, provided the DataCache is present. (Gemini)
 
