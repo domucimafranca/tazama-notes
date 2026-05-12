@@ -1,0 +1,84 @@
+{
+  "TxTp": "pacs.008.001.10",
+  "FIToFICstmrCdtTrf": {
+    "GrpHdr": {
+      "MsgId": "PAC8-{{ID}}",
+      "CreDtTm": "2026-04-28T14:15:00.000Z",
+      "NbOfTxs": 1,
+      "SttlmInf": { "SttlmMtd": "CLRG" }
+    },
+    "CdtTrfTxInf": {
+      "PmtId": { 
+        "InstrId": "instr-{{ID}}",
+        "EndToEndId": "E2E-{{ID}}" 
+      },
+      "IntrBkSttlmAmt": { "Amt": { "Amt": 1500.00, "Ccy": "USD" } },
+      "InstdAmt": { "Amt": { "Amt": 1500.00, "Ccy": "USD" } },
+      "ChrgBr": "DEBT",
+      "ChrgsInf": {
+        "Amt": { "Amt": 0.00, "Ccy": "USD" },
+        "Agt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp001" } } }
+      },
+      "InitgPty": {
+        "Nm": "{{SENDER}}",
+        "Id": { 
+          "PrvtId": { 
+            "DtAndPlcOfBirth": { "BirthDt": "1980-01-01", "CityOfBirth": "Unknown", "CtryOfBirth": "ZZ" },
+            "Othr": [{ "Id": "{{SENDER}}", "SchmeNm": { "Prtry": "TAZAMA_EID" } }] 
+          } 
+        },
+        "CtctDtls": { "MobNb": "+27-000000000" }
+      },
+      "Dbtr": {
+        "Nm": "{{SENDER}}",
+        "Id": { 
+          "PrvtId": { 
+            "DtAndPlcOfBirth": { "BirthDt": "1980-01-01", "CityOfBirth": "Unknown", "CtryOfBirth": "ZZ" },
+            "Othr": [{ "Id": "{{SENDER}}", "SchmeNm": { "Prtry": "TAZAMA_EID" } }] 
+          } 
+        },
+        "CtctDtls": { "MobNb": "+27-000000000" }
+      },
+      "DbtrAcct": {
+        "Id": { "Othr": [{ "Id": "{{SENDER}}", "SchmeNm": { "Prtry": "MSISDN" } }] },
+        "Nm": "{{SENDER}}-ACCOUNT"
+      },
+      "DbtrAgt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp001" } } },
+      "CdtrAgt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp002" } } },
+      "Cdtr": {
+        "Nm": "{{RECEIVER}}",
+        "Id": { 
+          "PrvtId": { 
+            "DtAndPlcOfBirth": { "BirthDt": "1990-01-01", "CityOfBirth": "Unknown", "CtryOfBirth": "ZZ" },
+            "Othr": [{ "Id": "{{RECEIVER}}", "SchmeNm": { "Prtry": "TAZAMA_EID" } }] 
+          } 
+        },
+        "CtctDtls": { "MobNb": "+27-111111111" }
+      },
+      "CdtrAcct": {
+        "Id": { "Othr": [{ "Id": "{{RECEIVER}}", "SchmeNm": { "Prtry": "MSISDN" } }] },
+        "Nm": "{{RECEIVER}}-ACCOUNT"
+      },
+      "Purp": { "Cd": "MP2P" }
+    },
+    "RgltryRptg": { "Dtls": { "Tp": "BALANCE OF PAYMENTS", "Cd": "100" } },
+    "RmtInf": { "Ustrd": "Blind Ingestion POC Test" },
+    "SplmtryData": {
+      "Envlp": { 
+        "Doc": { 
+          "Xprtn": "2026-12-31T23:59:59.000Z",
+          "InitgPty": { "Glctn": { "Lat": "-3.1609", "Long": "38.3588" } } 
+        } 
+      }
+    }
+  },
+  "DataCache": {
+    "dbtrId": "{{SENDER}}TAZAMA_EID",
+    "cdtrId": "{{RECEIVER}}TAZAMA_EID",
+    "dbtrAcctId": "{{SENDER}}MSISDNfsp001",
+    "cdtrAcctId": "{{RECEIVER}}MSISDNfsp002",
+    "creDtTm": "2026-04-28T14:15:00.000Z",
+    "instdAmt": { "amt": 1500.00, "ccy": "USD" }
+  },
+  "tenantId": "DEFAULT"
+}

@@ -1,0 +1,38 @@
+{
+  "TxTp": "pacs.002.001.12",
+  "FIToFIPmtSts": {
+    "GrpHdr": {
+      "MsgId": "POC-MSG-{{ID}}",
+      "CreDtTm": "2026-04-28T14:12:00.000Z"
+    },
+    "TxInfAndSts": {
+      "OrgnlInstrId": "5ab4fc7355de4ef8a75b78b00a681ed2",
+      "OrgnlEndToEndId": "E2E-{{ID}}",
+      "TxSts": "ACCC",
+      "AccptncDtTm": "2026-04-28T14:12:05.000Z",
+      "ChrgsInf": [
+        {
+          "Amt": { "Amt": 0.00, "Ccy": "USD" },
+          "Agt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp001" } } }
+        }
+      ],
+      "InstgAgt": {
+        "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp001" } }
+      },
+      "InstdAgt": {
+        "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp002" } }
+      }
+    }
+  },
+  "DataCache": {
+    "dbtrId": "SENDER-001TAZAMA_EID",
+    "cdtrId": "RECEIVER-999TAZAMA_EID",
+    "dbtrAcctId": "SENDER-001MSISDNfsp001",
+    "cdtrAcctId": "RECEIVER-999MSISDNfsp002",
+    "creDtTm": "2026-04-28T14:12:00.000Z",
+    "instdAmt": { "amt": 1500.00, "ccy": "USD" },
+    "intrBkSttlmAmt": { "amt": 1500.00, "ccy": "USD" },
+    "xchgRate": 1.0
+  },
+  "tenantId": "DEFAULT"
+}

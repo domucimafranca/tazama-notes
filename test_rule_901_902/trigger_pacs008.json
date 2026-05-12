@@ -1,0 +1,87 @@
+{
+  "TxTp": "pacs.008.001.10",
+  "FIToFICstmrCdtTrf": {
+    "GrpHdr": {
+      "MsgId": "PAC8-{{ID}}",
+      "CreDtTm": "2026-04-28T14:15:00.000Z",
+      "NbOfTxs": 1,
+      "SttlmInf": { "SttlmMtd": "CLRG" }
+    },
+    "CdtTrfTxInf": {
+      "PmtId": { 
+        "InstrId": "5ab4fc7355de4ef8a75b78b00a681ed2",
+        "EndToEndId": "E2E-{{ID}}" 
+      },
+      "IntrBkSttlmAmt": { "Amt": { "Amt": 1500.00, "Ccy": "USD" } },
+      "InstdAmt": { "Amt": { "Amt": 1500.00, "Ccy": "USD" } },
+      "XchgRate": 1.0,
+      "ChrgBr": "DEBT",
+      "ChrgsInf": {
+        "Amt": { "Amt": 0.00, "Ccy": "USD" },
+        "Agt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp001" } } }
+      },
+      "InitgPty": {
+        "Nm": "SENDER-001",
+        "Id": { 
+          "PrvtId": { 
+            "DtAndPlcOfBirth": { "BirthDt": "1968-02-01", "CityOfBirth": "Unknown", "CtryOfBirth": "ZZ" },
+            "Othr": [{ "Id": "SENDER-001", "SchmeNm": { "Prtry": "TAZAMA_EID" } }] 
+          } 
+        },
+        "CtctDtls": { "MobNb": "+27-730975224" }
+      },
+      "Dbtr": {
+        "Nm": "SENDER-001",
+        "Id": { 
+          "PrvtId": { 
+            "DtAndPlcOfBirth": { "BirthDt": "1968-02-01", "CityOfBirth": "Unknown", "CtryOfBirth": "ZZ" },
+            "Othr": [{ "Id": "SENDER-001", "SchmeNm": { "Prtry": "TAZAMA_EID" } }] 
+          } 
+        },
+        "CtctDtls": { "MobNb": "+27-730975224" }
+      },
+      "DbtrAcct": {
+        "Id": { "Othr": [{ "Id": "SENDER-001", "SchmeNm": { "Prtry": "MSISDN" } }] },
+        "Nm": "SENDER-001-ACCOUNT"
+      },
+      "DbtrAgt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp001" } } },
+      "CdtrAgt": { "FinInstnId": { "ClrSysMmbId": { "MmbId": "fsp002" } } },
+      "Cdtr": {
+        "Nm": "RECEIVER-999",
+        "Id": { 
+          "PrvtId": { 
+            "DtAndPlcOfBirth": { "BirthDt": "1935-05-08", "CityOfBirth": "Unknown", "CtryOfBirth": "ZZ" },
+            "Othr": [{ "Id": "RECEIVER-999", "SchmeNm": { "Prtry": "TAZAMA_EID" } }] 
+          } 
+        },
+        "CtctDtls": { "MobNb": "+27-707650428" }
+      },
+      "CdtrAcct": {
+        "Id": { "Othr": [{ "Id": "RECEIVER-999", "SchmeNm": { "Prtry": "MSISDN" } }] },
+        "Nm": "RECEIVER-999-ACCOUNT"
+      },
+      "Purp": { "Cd": "MP2P" }
+    },
+    "RgltryRptg": {
+      "Dtls": { "Tp": "BALANCE OF PAYMENTS", "Cd": "100" }
+    },
+    "RmtInf": { "Ustrd": "POC Test Payment" },
+    "SplmtryData": {
+      "Envlp": { 
+        "Doc": { 
+          "Xprtn": "2026-12-31T23:59:59.000Z",
+          "InitgPty": { "Glctn": { "Lat": "-3.1609", "Long": "38.3588" } } 
+        } 
+      }
+    }
+  },
+  "DataCache": {
+    "dbtrId": "SENDER-001TAZAMA_EID",
+    "cdtrId": "RECEIVER-999TAZAMA_EID",
+    "dbtrAcctId": "SENDER-001MSISDNfsp001",
+    "cdtrAcctId": "RECEIVER-999MSISDNfsp002",
+    "creDtTm": "2026-04-28T14:15:00.000Z",
+    "instdAmt": { "amt": 1500.00, "ccy": "USD" }
+  },
+  "tenantId": "DEFAULT"
+}
