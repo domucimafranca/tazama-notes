@@ -1,0 +1,5910 @@
+commit 30c0f5404871661b76c60e4298293201822d65d1
+Author: Dom Cimafranca <domu@cimafranca.com>
+Date:   Wed May 13 10:28:01 2026 +0800
+
+    Fix Tazama Helm deployment for RKE2 and Longhorn
+
+diff --git a/Infrastructure/customCharts/pgadmin/templates/configmap.yaml b/Infrastructure/customCharts/pgadmin/templates/configmap.yaml
+index c242234..694509b 100644
+--- a/Infrastructure/customCharts/pgadmin/templates/configmap.yaml
++++ b/Infrastructure/customCharts/pgadmin/templates/configmap.yaml
+@@ -2,7 +2,7 @@ apiVersion: v1
+ kind: ConfigMap
+ metadata:
+   name: pgadmin-servers
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app: pgadmin
+ data:
+diff --git a/Infrastructure/customCharts/pgadmin/templates/deployment.yaml b/Infrastructure/customCharts/pgadmin/templates/deployment.yaml
+index 3234202..df1145a 100644
+--- a/Infrastructure/customCharts/pgadmin/templates/deployment.yaml
++++ b/Infrastructure/customCharts/pgadmin/templates/deployment.yaml
+@@ -5,7 +5,7 @@ apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   name: pgadmin
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app.kubernetes.io/instance: pgadmin
+     app.kubernetes.io/managed-by: Helm
+diff --git a/Infrastructure/customCharts/pgadmin/templates/pvc.yaml b/Infrastructure/customCharts/pgadmin/templates/pvc.yaml
+deleted file mode 100644
+index 6861d15..0000000
+--- a/Infrastructure/customCharts/pgadmin/templates/pvc.yaml
++++ /dev/null
+@@ -1,10 +0,0 @@
+-apiVersion: v1
+-kind: PersistentVolumeClaim
+-metadata:
+-  name: jenkins-pvc
+-spec:
+-  accessModes:
+-    - ReadWriteOnce
+-  resources:
+-    requests:
+-      storage: 8Gi
+diff --git a/Infrastructure/customCharts/pgadmin/templates/secret.yaml b/Infrastructure/customCharts/pgadmin/templates/secret.yaml
+index 4ef4672..57bfc77 100644
+--- a/Infrastructure/customCharts/pgadmin/templates/secret.yaml
++++ b/Infrastructure/customCharts/pgadmin/templates/secret.yaml
+@@ -2,7 +2,7 @@ apiVersion: v1
+ kind: Secret
+ metadata:
+   name: pgadmin
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+ type: Opaque
+ stringData:
+-  pgadmin-password: "123"
++  pgadmin-password: "ChangeMeNow123!"
+diff --git a/Infrastructure/customCharts/pgadmin/templates/service.yaml b/Infrastructure/customCharts/pgadmin/templates/service.yaml
+index e0c1bd8..47bc684 100644
+--- a/Infrastructure/customCharts/pgadmin/templates/service.yaml
++++ b/Infrastructure/customCharts/pgadmin/templates/service.yaml
+@@ -5,7 +5,7 @@ apiVersion: v1
+ kind: Service
+ metadata:
+   name: pgadmin
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app.kubernetes.io/instance: pgadmin
+     app.kubernetes.io/managed-by: Helm
+diff --git a/Infrastructure/customCharts/postgres/templates/deployment.yaml b/Infrastructure/customCharts/postgres/templates/deployment.yaml
+index 1bd19b9..a4a1ddd 100644
+--- a/Infrastructure/customCharts/postgres/templates/deployment.yaml
++++ b/Infrastructure/customCharts/postgres/templates/deployment.yaml
+@@ -5,7 +5,7 @@ apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   name: postgres
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app.kubernetes.io/instance: postgres
+     app.kubernetes.io/managed-by: Helm
+@@ -30,12 +30,14 @@ spec:
+                 secretKeyRef:
+                   name: postgres
+                   key: admin-password
++            - name: PGDATA
++              value: /var/lib/postgresql/data/pgdata
+           ports:
+             - containerPort: {{ .Values.service.port }}
+           volumeMounts:
+             - name: postgres-data
+-              mountPath: /var/lib/postgres
++              mountPath: /var/lib/postgresql
+       volumes:
+         - name: postgres-data
+           persistentVolumeClaim:
+-            claimName: postgres-pvc
+\ No newline at end of file
++            claimName: postgres-pvc
+diff --git a/Infrastructure/customCharts/postgres/templates/job-migrate.yaml b/Infrastructure/customCharts/postgres/templates/job-migrate.yaml
+index 6a354b3..0175b9f 100644
+--- a/Infrastructure/customCharts/postgres/templates/job-migrate.yaml
++++ b/Infrastructure/customCharts/postgres/templates/job-migrate.yaml
+@@ -2,7 +2,7 @@ apiVersion: batch/v1
+ kind: Job
+ metadata:
+   name: postgres-migrate
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   annotations:
+     "helm.sh/hook": post-install,post-upgrade
+     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+diff --git a/Infrastructure/customCharts/postgres/templates/pvc.yaml b/Infrastructure/customCharts/postgres/templates/pvc.yaml
+index fc00289..c8ee191 100644
+--- a/Infrastructure/customCharts/postgres/templates/pvc.yaml
++++ b/Infrastructure/customCharts/postgres/templates/pvc.yaml
+@@ -5,7 +5,7 @@ apiVersion: v1
+ kind: PersistentVolumeClaim
+ metadata:
+   name: postgres-pvc
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app.kubernetes.io/instance: postgres
+     app.kubernetes.io/managed-by: Helm
+diff --git a/Infrastructure/customCharts/postgres/templates/secret.yaml b/Infrastructure/customCharts/postgres/templates/secret.yaml
+index af7e2ef..79f3241 100644
+--- a/Infrastructure/customCharts/postgres/templates/secret.yaml
++++ b/Infrastructure/customCharts/postgres/templates/secret.yaml
+@@ -4,7 +4,7 @@ apiVersion: v1
+ kind: Secret
+ metadata:
+   name: postgres
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app.kubernetes.io/instance: postgres
+     app.kubernetes.io/managed-by: Helm
+diff --git a/Infrastructure/customCharts/postgres/templates/service.yaml b/Infrastructure/customCharts/postgres/templates/service.yaml
+index 41b5b7f..d13f007 100644
+--- a/Infrastructure/customCharts/postgres/templates/service.yaml
++++ b/Infrastructure/customCharts/postgres/templates/service.yaml
+@@ -5,7 +5,7 @@ apiVersion: v1
+ kind: Service
+ metadata:
+   name: postgres
+-  namespace: default
++  namespace: {{ .Release.Namespace }}
+   labels:
+     app.kubernetes.io/instance: postgres
+     app.kubernetes.io/managed-by: Helm
+diff --git a/Infrastructure/dryrun.txt b/Infrastructure/dryrun.txt
+new file mode 100644
+index 0000000..56a69c6
+--- /dev/null
++++ b/Infrastructure/dryrun.txt
+@@ -0,0 +1,1705 @@
++NAME: tazama
++LAST DEPLOYED: Mon May 11 16:25:46 2026
++NAMESPACE: dom-test-2026
++STATUS: pending-install
++REVISION: 1
++HOOKS:
++---
++# Source: Tazama/charts/jenkins/templates/tests/test-config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-jenkins-tests
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": test
++data:
++  run.sh: |-
++    @test "Testing Jenkins UI is accessible" {
++      curl --retry 48 --retry-delay 10 tazama-jenkins:8080/login
++    }
++---
++# Source: Tazama/charts/jenkins/templates/tests/jenkins-test.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  name: "tazama-ui-test-dm5ky"
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": test-success
++spec:
++  initContainers:
++    - name: "test-framework"
++      image: "docker.io/bats/bats:1.12.0"
++      command:
++        - "bash"
++        - "-c"
++      args:
++        - |
++          # copy bats to tools dir
++          set -ex
++          cp -R /opt/bats /tools/bats/
++      volumeMounts:
++      - mountPath: /tools
++        name: tools
++  containers:
++    - name: tazama-ui-test
++      image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++      command: ["/tools/bats/bin/bats", "-t", "/tests/run.sh"]
++      volumeMounts:
++      - mountPath: /tests
++        name: tests
++        readOnly: true
++      - mountPath: /tools
++        name: tools
++  volumes:
++  - name: tests
++    configMap:
++      name: tazama-jenkins-tests
++  - name: tools
++    emptyDir: {}
++  restartPolicy: Never
++---
++# Source: Tazama/charts/nats/templates/tests/request-reply.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  annotations:
++    helm.sh/hook: test
++    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
++  labels:
++    app.kubernetes.io/component: test-request-reply
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-test-request-reply
++spec:
++  containers:
++  - args:
++    - sh
++    - -ec
++    - nats reply --echo echo & pid="$!"; sleep 1; nats request echo hi > /tmp/resp;
++      kill "$pid"; wait; grep -qF hi /tmp/resp
++    command:
++    - sh
++    - -ec
++    - |
++      work_dir="$(pwd)"
++      mkdir -p "$XDG_CONFIG_HOME/nats"
++      cd "$XDG_CONFIG_HOME/nats"
++      if ! [ -s context ]; then
++        ln -s /etc/nats-contexts context
++      fi
++      if ! [ -f context.txt ]; then
++        echo -n "default" > context.txt
++      fi
++      cd "$work_dir"
++      exec /entrypoint.sh "$@"
++    - --
++    image: natsio/nats-box:0.18.0
++    name: nats-box
++    volumeMounts:
++    - mountPath: /etc/nats-contexts
++      name: contexts
++  enableServiceLinks: false
++  restartPolicy: Never
++  volumes:
++  - name: contexts
++    secret:
++      secretName: tazama-nats-box-contexts
++---
++# Source: Tazama/charts/postgres/templates/job-migrate.yaml
++apiVersion: batch/v1
++kind: Job
++metadata:
++  name: postgres-migrate
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": post-install,post-upgrade
++    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
++spec:
++  template:
++    spec:
++      restartPolicy: Never
++      containers:
++        - name: migrate
++          image: postgres:16
++          env:
++            - name: PGPASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++            - name: POSTGRES_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++          command: ["psql"]
++          args:
++            [
++              "-h","postgres",
++              "-U","postgres",
++              "-d","postgres",
++              "-v","ON_ERROR_STOP=1",
++              "-f","/work/01_migrate.sql"
++            ]
++          volumeMounts:
++            - name: migrate-sql
++              mountPath: /work
++      volumes:
++        - name: migrate-sql
++          configMap:
++            name: postgres-migrate-sql
++MANIFEST:
++---
++# Source: Tazama/charts/nats/templates/pod-disruption-budget.yaml
++apiVersion: policy/v1
++kind: PodDisruptionBudget
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  maxUnavailable: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/jenkins/templates/service-account.yaml
++apiVersion: v1
++kind: ServiceAccount
++automountServiceAccountToken: true
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++---
++# Source: Tazama/charts/valkey/templates/serviceaccount.yaml
++apiVersion: v1
++kind: ServiceAccount
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++automountServiceAccountToken: false
++---
++# Source: Tazama/charts/jenkins/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++type: Opaque
++data:
++  jenkins-admin-password: "YTZDSFdzemh4Rzl3RmV2dTNZTjFDMw=="
++  jenkins-admin-user: "YWRtaW4="
++---
++# Source: Tazama/charts/nats/templates/nats-box/contexts-secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  labels:
++    app.kubernetes.io/component: nats-box
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-box-contexts
++stringData:
++  default.json: |
++    {
++      "url": "nats://tazama-nats"
++    }
++type: Opaque
++---
++# Source: Tazama/charts/pgadmin/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++type: Opaque
++stringData:
++  pgadmin-password: "ChangeMeNow123!"
++---
++# Source: Tazama/charts/postgres/templates/secret.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++apiVersion: v1
++kind: Secret
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++type: Opaque
++data:
++  admin-password: "RWo3cGZvVmlnSnVp"
++---
++# Source: Tazama/charts/jenkins/templates/config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++data:
++  apply_config.sh: |-
++    set -e
++    echo "disable Setup Wizard"
++    # Prevent Setup Wizard when JCasC is enabled
++    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.UpgradeWizard.state
++    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.InstallUtil.lastExecVersion
++    echo "download plugins"
++    # Install missing plugins
++    cp /var/jenkins_config/plugins.txt /var/jenkins_home;
++    rm -rf /usr/share/jenkins/ref/plugins/*.lock
++    version () { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
++    if [ -f "/usr/share/jenkins/jenkins.war" ] && [ -n "$(command -v jenkins-plugin-cli)" 2>/dev/null ] && [ $(version $(jenkins-plugin-cli --version)) -ge $(version "2.1.1") ]; then
++      jenkins-plugin-cli --verbose --war "/usr/share/jenkins/jenkins.war" --plugin-file "/var/jenkins_home/plugins.txt" --latest false;
++    else
++      /usr/local/bin/install-plugins.sh `echo $(cat /var/jenkins_home/plugins.txt)`;
++    fi
++    echo "copy plugins to shared volume"
++    # Copy plugins to shared volume
++    yes n | cp -i /usr/share/jenkins/ref/plugins/* /var/jenkins_plugins/;
++    echo "finished initialization"
++  plugins.txt: |-
++    kubernetes:4371.vb_33b_086d54a_1
++    workflow-aggregator:608.v67378e9d3db_1
++    git:5.7.0
++    configuration-as-code:1985.vdda_32d0c4ea_b_
++    azure-vm-agents:901.ved986df424b_3
++    authorize-project:1.7.1
++    azure-cli:0.9
++    azure-credentials:312.v0f3973cd1e59
++    azure-keyvault:237.v301692369180
++    azure-sdk:157.v855da_0b_eb_dc2
++    command-launcher:107.v773860566e2e
++    config-file-provider:968.ve1ca_eb_913f8c
++    docker-commons:457.v0f62a_94f11a_3
++    github-api:1.321-488.v9b_c0da_9533f8
++    github-branch-source:1772.va_69eda_d018d4
++    htmlpublisher:1.32
++    jjwt-api:0.11.5-120.v0268cf544b_89
++    kubernetes-cli:1.12.1
++    kubernetes-pipeline-devops-steps:1.6
++    kubernetes-credentials-provider:1.258.v95949f923a_a_e
++    nodejs:1.6.1
++    npm-yarn-wrapper-steps:0.4.0
++    pipeline-graph-analysis:202.va_d268e64deb_3
++    pipeline-npm:204.v4dc4c2202625
++    ssh-agent:346.vda_a_c4f2c8e50
++    ssh-slaves:2.948.vb_8050d697fec
++    sshd:3.322.v159e91f6a_550
++    swarm:3.44
++    token-macro:444.v52de7e9c573d
++    dark-theme:416.v535839b_c4e88
++    jobConfigHistory:1229.v3039470161a_d
++---
++# Source: Tazama/charts/jenkins/templates/jcasc-config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: "tazama-jenkins-jenkins-jcasc-config"
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++    tazama-jenkins-jenkins-config: "true"
++data:
++  jcasc-default-config.yaml: |-
++    jenkins:
++      authorizationStrategy:
++        loggedInUsersCanDoAnything:
++          allowAnonymousRead: false
++      securityRealm:
++        local:
++          allowsSignup: false
++          enableCaptcha: false
++          users:
++          - id: "${chart-admin-username}"
++            name: "Jenkins Admin"
++            password: "${chart-admin-password}"
++      disableRememberMe: false
++      mode: NORMAL
++      numExecutors: 0
++      labelString: ""
++      projectNamingStrategy: "standard"
++      markupFormatter:
++        plainText
++      clouds:
++      - kubernetes:
++          containerCapStr: "10"
++          defaultsProviderTemplate: ""
++          connectTimeout: "5"
++          readTimeout: "15"
++          jenkinsUrl: "http://tazama-jenkins.dom-test-2026.svc.cluster.local:8080"
++          jenkinsTunnel: "tazama-jenkins-agent.dom-test-2026.svc.cluster.local:50000"
++          skipTlsVerify: false
++          usageRestricted: false
++          maxRequestsPerHostStr: "32"
++          retentionTimeout: "5"
++          waitForPodSec: "600"
++          name: "kubernetes"
++          namespace: "dom-test-2026"
++          restrictedPssSecurityContext: false
++          serverUrl: "https://kubernetes.default"
++          credentialsId: ""
++          podLabels:
++          - key: "jenkins/tazama-jenkins-agent"
++            value: "true"
++          templates:
++            - name: "default"
++              namespace: "dom-test-2026"
++              id: d05f1a832f8657e0e01902696b5ad35b806d9d41ec6657c6d16c768c8d712d47
++              containers:
++              - name: "jnlp"
++                alwaysPullImage: false
++                args: "^${computer.jnlpmac} ^${computer.name}"
++                envVars:
++                  - envVar:
++                      key: "JENKINS_URL"
++                      value: "http://tazama-jenkins.dom-test-2026.svc.cluster.local:8080/"
++                image: "jenkins/inbound-agent:3327.v868139a_d00e0-7"
++                privileged: "false"
++                resourceLimitCpu: 512m
++                resourceLimitMemory: 512Mi
++                resourceRequestCpu: 512m
++                resourceRequestMemory: 512Mi
++                ttyEnabled: false
++                workingDir: /home/jenkins/agent
++              idleMinutes: 0
++              instanceCap: 2147483647
++              label: "tazama-jenkins-agent "
++              nodeUsageMode: "NORMAL"
++              podRetention: Never
++              showRawYaml: true
++              serviceAccount: "default"
++              slaveConnectTimeoutStr: "100"
++              yamlMergeStrategy: override
++              inheritYamlMergeStrategy: false
++      slaveAgentPort: 50000
++      crumbIssuer:
++        standard:
++          excludeClientIPFromCrumb: true
++    security:
++      apiToken:
++        creationOfLegacyTokenEnabled: false
++        tokenGenerationOnCreationEnabled: false
++        usageStatisticsEnabled: true
++    unclassified:
++      location:
++        url: http://tazama-jenkins:8080
++---
++# Source: Tazama/charts/nats/templates/config-map.yaml
++apiVersion: v1
++data:
++  nats.conf: |
++    {
++      "http_port": 8222,
++      "lame_duck_duration": "30s",
++      "lame_duck_grace_period": "10s",
++      "pid_file": "/var/run/nats/nats.pid",
++      "port": 4222,
++      "server_name": $SERVER_NAME
++    }
++kind: ConfigMap
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-config
++---
++# Source: Tazama/charts/pgadmin/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: pgadmin-servers
++  namespace: dom-test-2026
++  labels:
++    app: pgadmin
++data:
++  servers.json: |
++    {
++      "Servers": {
++        "1": {
++            "Name": "Tazama",
++            "Group": "Servers",
++            "Port": 5432,
++            "Username": "postgres",
++            "Host": "postgres",
++            "MaintenanceDB": "postgres",
++            "ConnectionParameters": {
++                "sslmode": "prefer",
++                "connect_timeout": 10
++            }
++        }
++      }
++    }
++---
++# Source: Tazama/charts/postgres/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: postgres-migrate-sql
++data:
++  01_migrate.sql: |
++    create database configuration;
++    create database event_history;
++    create database raw_history;
++    create database evaluation;
++    
++    \connect configuration;
++
++    create table network_map (
++        configuration jsonb not null,
++        tenantId text generated always as (configuration ->> 'tenantId') stored
++    );
++
++    create table typology (
++        configuration jsonb not null,
++        typologyId text generated always as (configuration ->> 'id') stored,
++        typologyCfg text generated always as (configuration ->> 'cfg') stored,
++        tenantId text generated always as (configuration ->> 'tenantId') stored,
++        primary key (typologyId, typologyCfg, tenantId)
++    );
++
++    create table rule (
++        configuration jsonb not null,
++        ruleId text generated always as (configuration ->> 'id') stored,
++        ruleCfg text generated always as (configuration ->> 'cfg') stored,
++        tenantId text generated always as (configuration ->> 'tenantId') stored,
++        primary key (ruleId, ruleCfg, tenantId)
++    );
++
++    \connect evaluation;
++
++    create table evaluation (
++        evaluation jsonb not null,
++        messageId text generated always as (
++            evaluation -> 'transaction' -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        tenantId text generated always as (evaluation -> 'transaction' ->> 'TenantId') stored
++    );
++
++    \connect event_history;
++
++    create table account (
++        id varchar not null,
++        tenantId text not null,
++        primary key (id, tenantId)
++    );
++
++    create table entity (
++        id varchar not null,
++        tenantId text not null,
++        creDtTm timestamptz not null,
++        primary key (id, tenantId)
++    );
++
++    create table account_holder (
++        source varchar not null,
++        destination varchar not null,
++        tenantId text not null,
++        creDtTm timestamptz not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references account (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table condition (
++        id varchar generated always as (condition ->> 'condId') stored,
++        tenantId text generated always as (condition ->> 'tenantId') stored,
++        condition jsonb not null,
++        primary key (id, tenantId)
++    );
++
++    create table governed_as_creditor_account_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp text [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_creditor_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_debtor_account_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_debtor_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++    /* transaction_relationship*/
++    create table transaction (
++        source varchar not null,
++        destination varchar not null,
++        transaction jsonb not null,
++        endToEndId text generated always as (transaction->>'EndToEndId') stored,
++        amt numeric(18, 2) generated always as (
++            (transaction->>'Amt')::numeric(18, 2)
++        ) stored,
++        ccy varchar generated always as (transaction->>'Ccy') stored,
++        msgId varchar generated always as (transaction->>'MsgId') stored,
++        creDtTm text generated always as (transaction->>'CreDtTm') stored,
++        txTp varchar generated always as (transaction->>'TxTp') stored,
++        txSts varchar generated always as (transaction->>'TxSts') stored,
++        tenantId text generated always as (transaction->>'TenantId') stored,
++        constraint unique_msgid unique (msgId, tenantId),
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references account (id, tenantId),
++        primary key (endToEndId, txTp, tenantId)
++    );
++
++    create index idx_tr_cre_dt_tm on transaction (creDtTm, tenantId);
++
++    create index idx_tr_source_txtp_credttm ON transaction (source, txtp, creDtTm, tenantId);
++
++
++    create index idx_tr_pacs002_accc on transaction (endtoendid, creDtTm, tenantId)
++    where
++        txtp = 'pacs.002.001.12'
++        and txsts = 'ACCC';
++
++    create index idx_tr_dest_txtp_txsts_credttm on transaction (
++        destination,
++        txtp,
++        txsts,
++        creDtTm desc
++    ) include (source);
++
++    \connect raw_history;
++
++    create table pacs002 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'FIToFIPmtSts' -> 'TxInfAndSts' ->> 'OrgnlEndToEndId'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_pacs002 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create table pacs008 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pacs008 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pacs008_dbtr_acct_id on pacs008 (debtorAccountId, tenantId);
++
++    create index idx_pacs008_cdtr_acct_id on pacs008 (creditorAccountId, tenantId);
++
++    create index idx_pacs008_credttm on pacs008 (creDtTm, tenantId);
++
++    create table pain001 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pain001 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pain001_dbtr_acct_id on pain001 (debtorAccountId, tenantId);
++
++    create index idx_pain001_cdtr_acct_id on pain001 (creditorAccountId, tenantId);
++
++    create index idx_pain001_credttm on pain001 (creDtTm, tenantId);
++
++    create table pain013 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pain013 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pain013_dbtr_acct_id on pain013 (debtorAccountId, tenantId);
++
++    create index idx_pain013_cdtr_acct_id on pain013 (creditorAccountId, tenantId);
++
++    create index idx_pain013_credttm on pain013 (creDtTm, tenantId);
++---
++# Source: Tazama/charts/valkey/templates/init_config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-valkey-init-scripts
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++data:
++  init.sh: |-
++    #!/bin/sh
++    set -euo pipefail
++
++    # Default config paths
++    VALKEY_CONFIG=${VALKEY_CONFIG_PATH:-/data/conf/valkey.conf}
++
++    LOGFILE="/data/init.log"
++    DATA_DIR="/data/conf"
++
++    # Logging function
++    log() {
++      echo "$(date) $1" | tee -a "$LOGFILE"
++    }
++
++    # Clean old log if requested
++    if [ "${KEEP_OLD_LOGS:-false}" != "true" ]; then
++      rm -f "$LOGFILE"
++    fi
++
++    if [ -f "$LOGFILE" ]; then
++      log "Detected restart of this instance ($HOSTNAME)"
++    fi
++
++    log "Creating configuration in $DATA_DIR..."
++    mkdir -p "$DATA_DIR"
++    rm -f "$VALKEY_CONFIG" 
++
++ 
++    # Base valkey.conf
++    log "Generating base valkey.conf"
++    {
++      echo "port 6379"
++      echo "protected-mode no"
++      echo "bind 0.0.0.0"
++      echo "dir /data"
++    } >>"$VALKEY_CONFIG"
++
++    # Append extra configs if present
++    if [ -f /usr/local/etc/valkey/valkey.conf ]; then
++      log "Appending /usr/local/etc/valkey/valkey.conf"
++      cat /usr/local/etc/valkey/valkey.conf >>"$VALKEY_CONFIG"
++    fi
++    if [ -d /extravalkeyconfigs ]; then
++      log "Appending files in /extravalkeyconfigs/"
++      cat /extravalkeyconfigs/* >>"$VALKEY_CONFIG"
++    fi
++---
++# Source: Tazama/charts/jenkins/templates/home-pvc.yaml
++kind: PersistentVolumeClaim
++apiVersion: v1
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  accessModes:
++    - "ReadWriteOnce"
++  resources:
++    requests:
++      storage: "2Gi"
++---
++# Source: Tazama/charts/postgres/templates/pvc.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: pvc.yaml
++apiVersion: v1
++kind: PersistentVolumeClaim
++metadata:
++  name: postgres-pvc
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  storageClassName: longhorn
++  accessModes:
++    - ReadWriteOnce
++  resources:
++    requests:
++      storage: 5Gi
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# This role is used to allow Jenkins scheduling of agents via Kubernetes plugin.
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: tazama-jenkins-schedule-agents
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++rules:
++- apiGroups: [""]
++  resources: ["pods", "pods/exec", "pods/log", "persistentvolumeclaims", "events"]
++  verbs: ["get", "list", "watch"]
++- apiGroups: [""]
++  resources: ["pods", "pods/exec", "persistentvolumeclaims"]
++  verbs: ["create", "delete", "deletecollection", "patch", "update"]
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# The sidecar container which is responsible for reloading configuration changes
++# needs permissions to watch ConfigMaps
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: tazama-jenkins-casc-reload
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++rules:
++- apiGroups: [""]
++  resources: ["configmaps"]
++  verbs: ["get", "watch", "list"]
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# We bind the role to the Jenkins service account. The role binding is created in the namespace
++# where the agents are supposed to run.
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: tazama-jenkins-schedule-agents
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: tazama-jenkins-schedule-agents
++subjects:
++- kind: ServiceAccount
++  name: tazama-jenkins
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: tazama-jenkins-watch-configmaps
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: tazama-jenkins-casc-reload
++subjects:
++- kind: ServiceAccount
++  name: tazama-jenkins
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-agent-svc.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-jenkins-agent
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  ports:
++    - port: 50000
++      targetPort: 50000
++      name: agent-listener
++  selector:
++    "app.kubernetes.io/component": "jenkins-controller"
++    "app.kubernetes.io/instance": "tazama"
++  type: ClusterIP
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-controller-svc.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  ports:
++    - port: 8080
++      name: http
++      targetPort: 8080
++  selector:
++    "app.kubernetes.io/component": "jenkins-controller"
++    "app.kubernetes.io/instance": "tazama"
++  type: ClusterIP
++---
++# Source: Tazama/charts/nats/templates/headless-service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-headless
++spec:
++  clusterIP: None
++  ports:
++  - appProtocol: tcp
++    name: nats
++    port: 4222
++    targetPort: nats
++  - appProtocol: http
++    name: monitor
++    port: 8222
++    targetPort: monitor
++  publishNotReadyAddresses: true
++  selector:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/nats/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  ports:
++  - appProtocol: tcp
++    name: nats
++    port: 4222
++    targetPort: nats
++  selector:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/pgadmin/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: pgadmin
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: pgadmin
++spec:
++  type: ClusterIP
++  selector:
++    app: pgadmin
++  ports:
++    - name: pgadmin
++      port: 80
++      targetPort: 80
++---
++# Source: Tazama/charts/postgres/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  type: ClusterIP
++  selector:
++    app: postgres
++  ports:
++    - name: postgres
++      port: 5432
++      targetPort: 5432
++---
++# Source: Tazama/charts/valkey/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++spec:
++  type: ClusterIP
++  ports:
++    - port: 6379
++      targetPort: tcp
++      protocol: TCP
++      name: tcp
++  selector:
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++---
++# Source: Tazama/charts/nats/templates/nats-box/deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  labels:
++    app.kubernetes.io/component: nats-box
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-box
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats-box
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++  template:
++    metadata:
++      labels:
++        app.kubernetes.io/component: nats-box
++        app.kubernetes.io/instance: tazama
++        app.kubernetes.io/managed-by: Helm
++        app.kubernetes.io/name: nats
++        app.kubernetes.io/version: 2.11.9
++        helm.sh/chart: nats-1.3.14
++    spec:
++      containers:
++      - args:
++        - sh
++        - -ec
++        - trap true INT TERM; sleep infinity & wait
++        command:
++        - sh
++        - -ec
++        - |
++          work_dir="$(pwd)"
++          mkdir -p "$XDG_CONFIG_HOME/nats"
++          cd "$XDG_CONFIG_HOME/nats"
++          if ! [ -s context ]; then
++            ln -s /etc/nats-contexts context
++          fi
++          if ! [ -f context.txt ]; then
++            echo -n "default" > context.txt
++          fi
++          cd "$work_dir"
++          exec /entrypoint.sh "$@"
++        - --
++        image: natsio/nats-box:0.18.0
++        name: nats-box
++        volumeMounts:
++        - mountPath: /etc/nats-contexts
++          name: contexts
++      enableServiceLinks: false
++      volumes:
++      - name: contexts
++        secret:
++          secretName: tazama-nats-box-contexts
++---
++# Source: Tazama/charts/pgadmin/templates/deployment.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: pgadmin
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: pgadmin
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app: pgadmin
++  template:
++    metadata:
++      labels:
++        app: pgadmin
++    spec:
++      containers:
++        - name: pgadmin
++          image: dpage/pgadmin4:latest
++          imagePullPolicy: IfNotPresent
++          env:
++            - name: PGADMIN_DEFAULT_EMAIL
++              value: admin@tazama.com
++            - name: PGADMIN_DEFAULT_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: pgadmin
++                  key: pgadmin-password
++          ports:
++            - containerPort: 80
++          volumeMounts:
++            - name: servers
++              subPath: servers.json
++              mountPath: /pgadmin4/servers.json
++      volumes:
++        - name: servers
++          configMap:
++            name: pgadmin-servers
++---
++# Source: Tazama/charts/postgres/templates/deployment.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app: postgres
++  template:
++    metadata:
++      labels:
++        app: postgres
++    spec:
++      containers:
++        - name: postgres
++          image: postgres:16
++          imagePullPolicy: IfNotPresent
++          env:
++            - name: POSTGRES_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++          ports:
++            - containerPort: 5432
++          volumeMounts:
++            - name: postgres-data
++              mountPath: /var/lib/postgresql/data
++      volumes:
++        - name: postgres-data
++          persistentVolumeClaim:
++            claimName: postgres-pvc
++---
++# Source: Tazama/charts/valkey/templates/deploy_valkey.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++spec:
++  replicas: 1
++  strategy:
++    type: RollingUpdate
++  selector:
++    matchLabels:
++      app.kubernetes.io/name: valkey
++      app.kubernetes.io/instance: tazama
++  template:
++    metadata:
++      labels:
++        app.kubernetes.io/name: valkey
++        app.kubernetes.io/instance: tazama
++        checksum/initconfig: 34821a9c5952b4b9340d394588c95e2f
++    spec:
++      automountServiceAccountToken: false
++      serviceAccountName: tazama-valkey
++      securityContext:
++        fsGroup: 1000
++        runAsGroup: 1000
++        runAsUser: 1000
++      
++      initContainers:
++        - name: valkey-init
++          image: "docker.io/valkey/valkey:8.1.4"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            capabilities:
++              drop:
++              - ALL
++            readOnlyRootFilesystem: true
++            runAsNonRoot: true
++            runAsUser: 1000
++          command: [ "/scripts/init.sh" ]
++          volumeMounts:
++            - name: valkey-data
++              mountPath: /data
++            - name: scripts
++              mountPath: /scripts
++
++      containers:
++        - name: tazama-valkey
++          image: "docker.io/valkey/valkey:8.1.4"
++          command: [ "valkey-server" ]
++          args: [ "/data/conf/valkey.conf" ]
++          securityContext:
++            capabilities:
++              drop:
++              - ALL
++            readOnlyRootFilesystem: true
++            runAsNonRoot: true
++            runAsUser: 1000
++          env:
++            - name: VALKEY_LOGLEVEL
++              value: "notice"
++          ports:
++            - name: tcp
++              containerPort: 6379
++              protocol: TCP
++          startupProbe:
++            exec:
++              command: [ "sh", "-c", "valkey-cli ping" ]
++          livenessProbe:
++            exec:
++              command: [ "sh", "-c", "valkey-cli ping" ]
++          resources:
++            {}
++          volumeMounts:
++            - name: valkey-data
++              mountPath: /data
++      volumes:
++        - name: scripts
++          configMap:
++            name: tazama-valkey-init-scripts
++            defaultMode: 0555
++        - name: valkey-data
++          emptyDir: {}
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-controller-statefulset.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  serviceName: tazama-jenkins
++  replicas: 1
++  selector:
++    matchLabels:
++      "app.kubernetes.io/component": "jenkins-controller"
++      "app.kubernetes.io/instance": "tazama"
++  template:
++    metadata:
++      labels:
++        "app.kubernetes.io/name": 'jenkins'
++        "app.kubernetes.io/managed-by": "Helm"
++        "app.kubernetes.io/instance": "tazama"
++        "app.kubernetes.io/component": "jenkins-controller"
++        "helm.sh/chart": "jenkins-5.8.86"
++      annotations:
++        checksum/config: 29c4743e00261e40627b0d02f57f2095f5743450872583edae889101cb063b12
++    spec:
++      enableServiceLinks: false
++      securityContext:
++    
++        runAsUser: 1000
++        fsGroup: 1000
++        runAsNonRoot: true
++      serviceAccountName: "tazama-jenkins"
++      automountServiceAccountToken: true
++      initContainers:
++        - name: config-reload-init
++          image: "docker.io/kiwigrid/k8s-sidecar:1.30.7"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++          env:
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: LABEL
++              value: "tazama-jenkins-jenkins-config"
++            - name: FOLDER
++              value: "/var/jenkins_home/casc_configs"
++            - name: NAMESPACE
++              value: 'dom-test-2026'
++            - name: METHOD
++              value: "LIST"
++        
++          resources:
++            {}
++          volumeMounts:
++            - name: sc-config-volume
++              mountPath: "/var/jenkins_home/casc_configs"
++            - name: jenkins-home
++              mountPath: /var/jenkins_home
++
++        - name: "init"
++          image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++          imagePullPolicy: "Always"
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++            runAsGroup: 1000
++            runAsUser: 1000
++          command: [ "sh", "/var/jenkins_config/apply_config.sh" ]
++          resources:
++            limits:
++              cpu: 2000m
++              memory: 4096Mi
++            requests:
++              cpu: 50m
++              memory: 256Mi
++          volumeMounts:
++            - mountPath: /var/jenkins_home
++              name: jenkins-home
++            - mountPath: /var/jenkins_config
++              name: jenkins-config
++            - mountPath: /usr/share/jenkins/ref/plugins
++              name: plugins
++            - mountPath: /var/jenkins_plugins
++              name: plugin-dir
++            - mountPath: /tmp
++              name: tmp-volume
++      containers:
++        - name: jenkins
++          image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++          imagePullPolicy: "Always"
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++            runAsGroup: 1000
++            runAsUser: 1000
++          args: [ "--httpPort=8080"]
++          env:
++            - name: SECRETS
++              value: /run/secrets/additional
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: JAVA_OPTS
++              value: >-
++                 -Dcasc.reload.token=$(POD_NAME) 
++            - name: JENKINS_OPTS
++              value: >-
++                 --webroot=/var/jenkins_cache/war 
++            - name: JENKINS_SLAVE_AGENT_PORT
++              value: "50000"
++
++            - name: CASC_JENKINS_CONFIG
++              value: /var/jenkins_home/casc_configs
++          ports:
++            - containerPort: 8080
++              name: http
++            - containerPort: 50000
++              name: agent-listener
++          startupProbe:
++            failureThreshold: 12
++            httpGet:
++              path: '/login'
++              port: http
++            periodSeconds: 10
++            timeoutSeconds: 5
++          livenessProbe:
++            failureThreshold: 5
++            httpGet:
++              path: '/login'
++              port: http
++            initialDelaySeconds: null
++            periodSeconds: 10
++            timeoutSeconds: 5
++          readinessProbe:
++            failureThreshold: 3
++            httpGet:
++              path: '/login'
++              port: http
++            initialDelaySeconds: null
++            periodSeconds: 10
++            timeoutSeconds: 5
++          resources:
++            limits:
++              cpu: 2000m
++              memory: 4096Mi
++            requests:
++              cpu: 50m
++              memory: 256Mi
++          volumeMounts:
++            - mountPath: /var/jenkins_home
++              name: jenkins-home
++              readOnly: false
++            - mountPath: /var/jenkins_config
++              name: jenkins-config
++              readOnly: true
++            - mountPath: /usr/share/jenkins/ref/plugins/
++              name: plugin-dir
++              readOnly: false
++            - name: sc-config-volume
++              mountPath: /var/jenkins_home/casc_configs
++            - name: jenkins-secrets
++              mountPath: /run/secrets/additional
++              readOnly: true
++            - name: jenkins-cache
++              mountPath: /var/jenkins_cache
++            - mountPath: /tmp
++              name: tmp-volume
++        - name: config-reload
++          image: "docker.io/kiwigrid/k8s-sidecar:1.30.7"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++          env:
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: LABEL
++              value: "tazama-jenkins-jenkins-config"
++            - name: FOLDER
++              value: "/var/jenkins_home/casc_configs"
++            - name: NAMESPACE
++              value: 'dom-test-2026'
++            - name: REQ_URL
++              value: "http://localhost:8080/reload-configuration-as-code/?casc-reload-token=$(POD_NAME)"
++            - name: REQ_METHOD
++              value: "POST"
++            - name: REQ_RETRY_CONNECT
++              value: "10"
++        
++          resources:
++            {}
++          volumeMounts:
++            - name: sc-config-volume
++              mountPath: "/var/jenkins_home/casc_configs"
++            - name: jenkins-home
++              mountPath: /var/jenkins_home
++
++      volumes:
++      - name: plugins
++        emptyDir: {}
++      - name: jenkins-config
++        configMap:
++          name: tazama-jenkins
++      - name: plugin-dir
++        emptyDir: {}
++      - name: jenkins-secrets
++        projected:
++          sources:
++          - secret:
++              name: tazama-jenkins
++              items:
++                - key: jenkins-admin-user
++                  path: chart-admin-username
++                - key: jenkins-admin-password
++                  path: chart-admin-password
++      - name: jenkins-cache
++        emptyDir: {}
++      - name: jenkins-home
++        persistentVolumeClaim:
++          claimName: tazama-jenkins
++      - name: sc-config-volume
++        emptyDir: {}
++      - name: tmp-volume
++        emptyDir: {}
++---
++# Source: Tazama/charts/nats/templates/stateful-set.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  podManagementPolicy: Parallel
++  replicas: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++  serviceName: tazama-nats-headless
++  template:
++    metadata:
++      annotations:
++        checksum/config: 9272ab7979cec4022ae9301d165c204127a26d8a2d2348b944ccd1034ca0d284
++      labels:
++        app.kubernetes.io/component: nats
++        app.kubernetes.io/instance: tazama
++        app.kubernetes.io/managed-by: Helm
++        app.kubernetes.io/name: nats
++        app.kubernetes.io/version: 2.11.9
++        helm.sh/chart: nats-1.3.14
++    spec:
++      containers:
++      - args:
++        - --config
++        - /etc/nats-config/nats.conf
++        env:
++        - name: POD_NAME
++          valueFrom:
++            fieldRef:
++              fieldPath: metadata.name
++        - name: SERVER_NAME
++          value: $(POD_NAME)
++        image: nats:2.11.9-alpine
++        lifecycle:
++          preStop:
++            exec:
++              command:
++              - nats-server
++              - -sl=ldm=/var/run/nats/nats.pid
++        livenessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /healthz?js-enabled-only=true
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 30
++          successThreshold: 1
++          timeoutSeconds: 5
++        name: nats
++        ports:
++        - containerPort: 4222
++          name: nats
++        - containerPort: 8222
++          name: monitor
++        readinessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /healthz?js-server-only=true
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 1
++          timeoutSeconds: 5
++        startupProbe:
++          failureThreshold: 90
++          httpGet:
++            path: /healthz
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 1
++          timeoutSeconds: 5
++        volumeMounts:
++        - mountPath: /etc/nats-config
++          name: config
++        - mountPath: /var/run/nats
++          name: pid
++      - args:
++        - -pid
++        - /var/run/nats/nats.pid
++        - -config
++        - /etc/nats-config/nats.conf
++        image: natsio/nats-server-config-reloader:0.19.1
++        name: reloader
++        volumeMounts:
++        - mountPath: /var/run/nats
++          name: pid
++        - mountPath: /etc/nats-config
++          name: config
++      enableServiceLinks: false
++      shareProcessNamespace: true
++      terminationGracePeriodSeconds: 60
++      volumes:
++      - configMap:
++          name: tazama-nats-config
++        name: config
++      - emptyDir: {}
++        name: pid
++  volumeClaimTemplates: null
++---
++# Source: Tazama/charts/pgadmin/templates/service.yaml
++# SPDX-License-Identifier: Apache-2.0
++---
++# Source: Tazama/charts/postgres/templates/service.yaml
++# SPDX-License-Identifier: Apache-2.0
++
+diff --git a/Infrastructure/rendered-longhorn-single.yaml b/Infrastructure/rendered-longhorn-single.yaml
+new file mode 100644
+index 0000000..90c4dd2
+--- /dev/null
++++ b/Infrastructure/rendered-longhorn-single.yaml
+@@ -0,0 +1,1706 @@
++NAME: tazama
++LAST DEPLOYED: Tue May 12 10:23:59 2026
++NAMESPACE: dom-test-2026
++STATUS: pending-install
++REVISION: 1
++HOOKS:
++---
++# Source: Tazama/charts/jenkins/templates/tests/test-config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-jenkins-tests
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": test
++data:
++  run.sh: |-
++    @test "Testing Jenkins UI is accessible" {
++      curl --retry 48 --retry-delay 10 tazama-jenkins:8080/login
++    }
++---
++# Source: Tazama/charts/jenkins/templates/tests/jenkins-test.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  name: "tazama-ui-test-oxkkv"
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": test-success
++spec:
++  initContainers:
++    - name: "test-framework"
++      image: "docker.io/bats/bats:1.12.0"
++      command:
++        - "bash"
++        - "-c"
++      args:
++        - |
++          # copy bats to tools dir
++          set -ex
++          cp -R /opt/bats /tools/bats/
++      volumeMounts:
++      - mountPath: /tools
++        name: tools
++  containers:
++    - name: tazama-ui-test
++      image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++      command: ["/tools/bats/bin/bats", "-t", "/tests/run.sh"]
++      volumeMounts:
++      - mountPath: /tests
++        name: tests
++        readOnly: true
++      - mountPath: /tools
++        name: tools
++  volumes:
++  - name: tests
++    configMap:
++      name: tazama-jenkins-tests
++  - name: tools
++    emptyDir: {}
++  restartPolicy: Never
++---
++# Source: Tazama/charts/nats/templates/tests/request-reply.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  annotations:
++    helm.sh/hook: test
++    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
++  labels:
++    app.kubernetes.io/component: test-request-reply
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-test-request-reply
++spec:
++  containers:
++  - args:
++    - sh
++    - -ec
++    - nats reply --echo echo & pid="$!"; sleep 1; nats request echo hi > /tmp/resp;
++      kill "$pid"; wait; grep -qF hi /tmp/resp
++    command:
++    - sh
++    - -ec
++    - |
++      work_dir="$(pwd)"
++      mkdir -p "$XDG_CONFIG_HOME/nats"
++      cd "$XDG_CONFIG_HOME/nats"
++      if ! [ -s context ]; then
++        ln -s /etc/nats-contexts context
++      fi
++      if ! [ -f context.txt ]; then
++        echo -n "default" > context.txt
++      fi
++      cd "$work_dir"
++      exec /entrypoint.sh "$@"
++    - --
++    image: natsio/nats-box:0.18.0
++    name: nats-box
++    volumeMounts:
++    - mountPath: /etc/nats-contexts
++      name: contexts
++  enableServiceLinks: false
++  restartPolicy: Never
++  volumes:
++  - name: contexts
++    secret:
++      secretName: tazama-nats-box-contexts
++---
++# Source: Tazama/charts/postgres/templates/job-migrate.yaml
++apiVersion: batch/v1
++kind: Job
++metadata:
++  name: postgres-migrate
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": post-install,post-upgrade
++    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
++spec:
++  template:
++    spec:
++      restartPolicy: Never
++      containers:
++        - name: migrate
++          image: postgres:16
++          env:
++            - name: PGPASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++            - name: POSTGRES_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++          command: ["psql"]
++          args:
++            [
++              "-h","postgres",
++              "-U","postgres",
++              "-d","postgres",
++              "-v","ON_ERROR_STOP=1",
++              "-f","/work/01_migrate.sql"
++            ]
++          volumeMounts:
++            - name: migrate-sql
++              mountPath: /work
++      volumes:
++        - name: migrate-sql
++          configMap:
++            name: postgres-migrate-sql
++MANIFEST:
++---
++# Source: Tazama/charts/nats/templates/pod-disruption-budget.yaml
++apiVersion: policy/v1
++kind: PodDisruptionBudget
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  maxUnavailable: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/jenkins/templates/service-account.yaml
++apiVersion: v1
++kind: ServiceAccount
++automountServiceAccountToken: true
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++---
++# Source: Tazama/charts/valkey/templates/serviceaccount.yaml
++apiVersion: v1
++kind: ServiceAccount
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++automountServiceAccountToken: false
++---
++# Source: Tazama/charts/jenkins/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++type: Opaque
++data:
++  jenkins-admin-password: "OENUdWlPV09BbWdvN29qV0hvZ2p3cQ=="
++  jenkins-admin-user: "YWRtaW4="
++---
++# Source: Tazama/charts/nats/templates/nats-box/contexts-secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  labels:
++    app.kubernetes.io/component: nats-box
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-box-contexts
++stringData:
++  default.json: |
++    {
++      "url": "nats://tazama-nats"
++    }
++type: Opaque
++---
++# Source: Tazama/charts/pgadmin/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++type: Opaque
++stringData:
++  pgadmin-password: "ChangeMeNow123!"
++---
++# Source: Tazama/charts/postgres/templates/secret.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++apiVersion: v1
++kind: Secret
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++type: Opaque
++data:
++  admin-password: "R0NPbk1QeVR0bDJw"
++---
++# Source: Tazama/charts/jenkins/templates/config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++data:
++  apply_config.sh: |-
++    set -e
++    echo "disable Setup Wizard"
++    # Prevent Setup Wizard when JCasC is enabled
++    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.UpgradeWizard.state
++    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.InstallUtil.lastExecVersion
++    echo "download plugins"
++    # Install missing plugins
++    cp /var/jenkins_config/plugins.txt /var/jenkins_home;
++    rm -rf /usr/share/jenkins/ref/plugins/*.lock
++    version () { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
++    if [ -f "/usr/share/jenkins/jenkins.war" ] && [ -n "$(command -v jenkins-plugin-cli)" 2>/dev/null ] && [ $(version $(jenkins-plugin-cli --version)) -ge $(version "2.1.1") ]; then
++      jenkins-plugin-cli --verbose --war "/usr/share/jenkins/jenkins.war" --plugin-file "/var/jenkins_home/plugins.txt" --latest false;
++    else
++      /usr/local/bin/install-plugins.sh `echo $(cat /var/jenkins_home/plugins.txt)`;
++    fi
++    echo "copy plugins to shared volume"
++    # Copy plugins to shared volume
++    yes n | cp -i /usr/share/jenkins/ref/plugins/* /var/jenkins_plugins/;
++    echo "finished initialization"
++  plugins.txt: |-
++    kubernetes:4371.vb_33b_086d54a_1
++    workflow-aggregator:608.v67378e9d3db_1
++    git:5.7.0
++    configuration-as-code:1985.vdda_32d0c4ea_b_
++    azure-vm-agents:901.ved986df424b_3
++    authorize-project:1.7.1
++    azure-cli:0.9
++    azure-credentials:312.v0f3973cd1e59
++    azure-keyvault:237.v301692369180
++    azure-sdk:157.v855da_0b_eb_dc2
++    command-launcher:107.v773860566e2e
++    config-file-provider:968.ve1ca_eb_913f8c
++    docker-commons:457.v0f62a_94f11a_3
++    github-api:1.321-488.v9b_c0da_9533f8
++    github-branch-source:1772.va_69eda_d018d4
++    htmlpublisher:1.32
++    jjwt-api:0.11.5-120.v0268cf544b_89
++    kubernetes-cli:1.12.1
++    kubernetes-pipeline-devops-steps:1.6
++    kubernetes-credentials-provider:1.258.v95949f923a_a_e
++    nodejs:1.6.1
++    npm-yarn-wrapper-steps:0.4.0
++    pipeline-graph-analysis:202.va_d268e64deb_3
++    pipeline-npm:204.v4dc4c2202625
++    ssh-agent:346.vda_a_c4f2c8e50
++    ssh-slaves:2.948.vb_8050d697fec
++    sshd:3.322.v159e91f6a_550
++    swarm:3.44
++    token-macro:444.v52de7e9c573d
++    dark-theme:416.v535839b_c4e88
++    jobConfigHistory:1229.v3039470161a_d
++---
++# Source: Tazama/charts/jenkins/templates/jcasc-config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: "tazama-jenkins-jenkins-jcasc-config"
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++    tazama-jenkins-jenkins-config: "true"
++data:
++  jcasc-default-config.yaml: |-
++    jenkins:
++      authorizationStrategy:
++        loggedInUsersCanDoAnything:
++          allowAnonymousRead: false
++      securityRealm:
++        local:
++          allowsSignup: false
++          enableCaptcha: false
++          users:
++          - id: "${chart-admin-username}"
++            name: "Jenkins Admin"
++            password: "${chart-admin-password}"
++      disableRememberMe: false
++      mode: NORMAL
++      numExecutors: 0
++      labelString: ""
++      projectNamingStrategy: "standard"
++      markupFormatter:
++        plainText
++      clouds:
++      - kubernetes:
++          containerCapStr: "10"
++          defaultsProviderTemplate: ""
++          connectTimeout: "5"
++          readTimeout: "15"
++          jenkinsUrl: "http://tazama-jenkins.dom-test-2026.svc.cluster.local:8080"
++          jenkinsTunnel: "tazama-jenkins-agent.dom-test-2026.svc.cluster.local:50000"
++          skipTlsVerify: false
++          usageRestricted: false
++          maxRequestsPerHostStr: "32"
++          retentionTimeout: "5"
++          waitForPodSec: "600"
++          name: "kubernetes"
++          namespace: "dom-test-2026"
++          restrictedPssSecurityContext: false
++          serverUrl: "https://kubernetes.default"
++          credentialsId: ""
++          podLabels:
++          - key: "jenkins/tazama-jenkins-agent"
++            value: "true"
++          templates:
++            - name: "default"
++              namespace: "dom-test-2026"
++              id: d05f1a832f8657e0e01902696b5ad35b806d9d41ec6657c6d16c768c8d712d47
++              containers:
++              - name: "jnlp"
++                alwaysPullImage: false
++                args: "^${computer.jnlpmac} ^${computer.name}"
++                envVars:
++                  - envVar:
++                      key: "JENKINS_URL"
++                      value: "http://tazama-jenkins.dom-test-2026.svc.cluster.local:8080/"
++                image: "jenkins/inbound-agent:3327.v868139a_d00e0-7"
++                privileged: "false"
++                resourceLimitCpu: 512m
++                resourceLimitMemory: 512Mi
++                resourceRequestCpu: 512m
++                resourceRequestMemory: 512Mi
++                ttyEnabled: false
++                workingDir: /home/jenkins/agent
++              idleMinutes: 0
++              instanceCap: 2147483647
++              label: "tazama-jenkins-agent "
++              nodeUsageMode: "NORMAL"
++              podRetention: Never
++              showRawYaml: true
++              serviceAccount: "default"
++              slaveConnectTimeoutStr: "100"
++              yamlMergeStrategy: override
++              inheritYamlMergeStrategy: false
++      slaveAgentPort: 50000
++      crumbIssuer:
++        standard:
++          excludeClientIPFromCrumb: true
++    security:
++      apiToken:
++        creationOfLegacyTokenEnabled: false
++        tokenGenerationOnCreationEnabled: false
++        usageStatisticsEnabled: true
++    unclassified:
++      location:
++        url: http://tazama-jenkins:8080
++---
++# Source: Tazama/charts/nats/templates/config-map.yaml
++apiVersion: v1
++data:
++  nats.conf: |
++    {
++      "http_port": 8222,
++      "lame_duck_duration": "30s",
++      "lame_duck_grace_period": "10s",
++      "pid_file": "/var/run/nats/nats.pid",
++      "port": 4222,
++      "server_name": $SERVER_NAME
++    }
++kind: ConfigMap
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-config
++---
++# Source: Tazama/charts/pgadmin/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: pgadmin-servers
++  namespace: dom-test-2026
++  labels:
++    app: pgadmin
++data:
++  servers.json: |
++    {
++      "Servers": {
++        "1": {
++            "Name": "Tazama",
++            "Group": "Servers",
++            "Port": 5432,
++            "Username": "postgres",
++            "Host": "postgres",
++            "MaintenanceDB": "postgres",
++            "ConnectionParameters": {
++                "sslmode": "prefer",
++                "connect_timeout": 10
++            }
++        }
++      }
++    }
++---
++# Source: Tazama/charts/postgres/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: postgres-migrate-sql
++data:
++  01_migrate.sql: |
++    create database configuration;
++    create database event_history;
++    create database raw_history;
++    create database evaluation;
++    
++    \connect configuration;
++
++    create table network_map (
++        configuration jsonb not null,
++        tenantId text generated always as (configuration ->> 'tenantId') stored
++    );
++
++    create table typology (
++        configuration jsonb not null,
++        typologyId text generated always as (configuration ->> 'id') stored,
++        typologyCfg text generated always as (configuration ->> 'cfg') stored,
++        tenantId text generated always as (configuration ->> 'tenantId') stored,
++        primary key (typologyId, typologyCfg, tenantId)
++    );
++
++    create table rule (
++        configuration jsonb not null,
++        ruleId text generated always as (configuration ->> 'id') stored,
++        ruleCfg text generated always as (configuration ->> 'cfg') stored,
++        tenantId text generated always as (configuration ->> 'tenantId') stored,
++        primary key (ruleId, ruleCfg, tenantId)
++    );
++
++    \connect evaluation;
++
++    create table evaluation (
++        evaluation jsonb not null,
++        messageId text generated always as (
++            evaluation -> 'transaction' -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        tenantId text generated always as (evaluation -> 'transaction' ->> 'TenantId') stored
++    );
++
++    \connect event_history;
++
++    create table account (
++        id varchar not null,
++        tenantId text not null,
++        primary key (id, tenantId)
++    );
++
++    create table entity (
++        id varchar not null,
++        tenantId text not null,
++        creDtTm timestamptz not null,
++        primary key (id, tenantId)
++    );
++
++    create table account_holder (
++        source varchar not null,
++        destination varchar not null,
++        tenantId text not null,
++        creDtTm timestamptz not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references account (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table condition (
++        id varchar generated always as (condition ->> 'condId') stored,
++        tenantId text generated always as (condition ->> 'tenantId') stored,
++        condition jsonb not null,
++        primary key (id, tenantId)
++    );
++
++    create table governed_as_creditor_account_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp text [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_creditor_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_debtor_account_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_debtor_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++    /* transaction_relationship*/
++    create table transaction (
++        source varchar not null,
++        destination varchar not null,
++        transaction jsonb not null,
++        endToEndId text generated always as (transaction->>'EndToEndId') stored,
++        amt numeric(18, 2) generated always as (
++            (transaction->>'Amt')::numeric(18, 2)
++        ) stored,
++        ccy varchar generated always as (transaction->>'Ccy') stored,
++        msgId varchar generated always as (transaction->>'MsgId') stored,
++        creDtTm text generated always as (transaction->>'CreDtTm') stored,
++        txTp varchar generated always as (transaction->>'TxTp') stored,
++        txSts varchar generated always as (transaction->>'TxSts') stored,
++        tenantId text generated always as (transaction->>'TenantId') stored,
++        constraint unique_msgid unique (msgId, tenantId),
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references account (id, tenantId),
++        primary key (endToEndId, txTp, tenantId)
++    );
++
++    create index idx_tr_cre_dt_tm on transaction (creDtTm, tenantId);
++
++    create index idx_tr_source_txtp_credttm ON transaction (source, txtp, creDtTm, tenantId);
++
++
++    create index idx_tr_pacs002_accc on transaction (endtoendid, creDtTm, tenantId)
++    where
++        txtp = 'pacs.002.001.12'
++        and txsts = 'ACCC';
++
++    create index idx_tr_dest_txtp_txsts_credttm on transaction (
++        destination,
++        txtp,
++        txsts,
++        creDtTm desc
++    ) include (source);
++
++    \connect raw_history;
++
++    create table pacs002 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'FIToFIPmtSts' -> 'TxInfAndSts' ->> 'OrgnlEndToEndId'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_pacs002 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create table pacs008 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pacs008 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pacs008_dbtr_acct_id on pacs008 (debtorAccountId, tenantId);
++
++    create index idx_pacs008_cdtr_acct_id on pacs008 (creditorAccountId, tenantId);
++
++    create index idx_pacs008_credttm on pacs008 (creDtTm, tenantId);
++
++    create table pain001 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pain001 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pain001_dbtr_acct_id on pain001 (debtorAccountId, tenantId);
++
++    create index idx_pain001_cdtr_acct_id on pain001 (creditorAccountId, tenantId);
++
++    create index idx_pain001_credttm on pain001 (creDtTm, tenantId);
++
++    create table pain013 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pain013 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pain013_dbtr_acct_id on pain013 (debtorAccountId, tenantId);
++
++    create index idx_pain013_cdtr_acct_id on pain013 (creditorAccountId, tenantId);
++
++    create index idx_pain013_credttm on pain013 (creDtTm, tenantId);
++---
++# Source: Tazama/charts/valkey/templates/init_config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-valkey-init-scripts
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++data:
++  init.sh: |-
++    #!/bin/sh
++    set -euo pipefail
++
++    # Default config paths
++    VALKEY_CONFIG=${VALKEY_CONFIG_PATH:-/data/conf/valkey.conf}
++
++    LOGFILE="/data/init.log"
++    DATA_DIR="/data/conf"
++
++    # Logging function
++    log() {
++      echo "$(date) $1" | tee -a "$LOGFILE"
++    }
++
++    # Clean old log if requested
++    if [ "${KEEP_OLD_LOGS:-false}" != "true" ]; then
++      rm -f "$LOGFILE"
++    fi
++
++    if [ -f "$LOGFILE" ]; then
++      log "Detected restart of this instance ($HOSTNAME)"
++    fi
++
++    log "Creating configuration in $DATA_DIR..."
++    mkdir -p "$DATA_DIR"
++    rm -f "$VALKEY_CONFIG" 
++
++ 
++    # Base valkey.conf
++    log "Generating base valkey.conf"
++    {
++      echo "port 6379"
++      echo "protected-mode no"
++      echo "bind 0.0.0.0"
++      echo "dir /data"
++    } >>"$VALKEY_CONFIG"
++
++    # Append extra configs if present
++    if [ -f /usr/local/etc/valkey/valkey.conf ]; then
++      log "Appending /usr/local/etc/valkey/valkey.conf"
++      cat /usr/local/etc/valkey/valkey.conf >>"$VALKEY_CONFIG"
++    fi
++    if [ -d /extravalkeyconfigs ]; then
++      log "Appending files in /extravalkeyconfigs/"
++      cat /extravalkeyconfigs/* >>"$VALKEY_CONFIG"
++    fi
++---
++# Source: Tazama/charts/jenkins/templates/home-pvc.yaml
++kind: PersistentVolumeClaim
++apiVersion: v1
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  accessModes:
++    - "ReadWriteOnce"
++  resources:
++    requests:
++      storage: "2Gi"
++  storageClassName: "longhorn-single"
++---
++# Source: Tazama/charts/postgres/templates/pvc.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: pvc.yaml
++apiVersion: v1
++kind: PersistentVolumeClaim
++metadata:
++  name: postgres-pvc
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  storageClassName: longhorn-single
++  accessModes:
++    - ReadWriteOnce
++  resources:
++    requests:
++      storage: 5Gi
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# This role is used to allow Jenkins scheduling of agents via Kubernetes plugin.
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: tazama-jenkins-schedule-agents
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++rules:
++- apiGroups: [""]
++  resources: ["pods", "pods/exec", "pods/log", "persistentvolumeclaims", "events"]
++  verbs: ["get", "list", "watch"]
++- apiGroups: [""]
++  resources: ["pods", "pods/exec", "persistentvolumeclaims"]
++  verbs: ["create", "delete", "deletecollection", "patch", "update"]
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# The sidecar container which is responsible for reloading configuration changes
++# needs permissions to watch ConfigMaps
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: tazama-jenkins-casc-reload
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++rules:
++- apiGroups: [""]
++  resources: ["configmaps"]
++  verbs: ["get", "watch", "list"]
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# We bind the role to the Jenkins service account. The role binding is created in the namespace
++# where the agents are supposed to run.
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: tazama-jenkins-schedule-agents
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: tazama-jenkins-schedule-agents
++subjects:
++- kind: ServiceAccount
++  name: tazama-jenkins
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: tazama-jenkins-watch-configmaps
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: tazama-jenkins-casc-reload
++subjects:
++- kind: ServiceAccount
++  name: tazama-jenkins
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-agent-svc.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-jenkins-agent
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  ports:
++    - port: 50000
++      targetPort: 50000
++      name: agent-listener
++  selector:
++    "app.kubernetes.io/component": "jenkins-controller"
++    "app.kubernetes.io/instance": "tazama"
++  type: ClusterIP
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-controller-svc.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  ports:
++    - port: 8080
++      name: http
++      targetPort: 8080
++  selector:
++    "app.kubernetes.io/component": "jenkins-controller"
++    "app.kubernetes.io/instance": "tazama"
++  type: ClusterIP
++---
++# Source: Tazama/charts/nats/templates/headless-service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-headless
++spec:
++  clusterIP: None
++  ports:
++  - appProtocol: tcp
++    name: nats
++    port: 4222
++    targetPort: nats
++  - appProtocol: http
++    name: monitor
++    port: 8222
++    targetPort: monitor
++  publishNotReadyAddresses: true
++  selector:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/nats/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  ports:
++  - appProtocol: tcp
++    name: nats
++    port: 4222
++    targetPort: nats
++  selector:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/pgadmin/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: pgadmin
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: pgadmin
++spec:
++  type: ClusterIP
++  selector:
++    app: pgadmin
++  ports:
++    - name: pgadmin
++      port: 80
++      targetPort: 80
++---
++# Source: Tazama/charts/postgres/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  type: ClusterIP
++  selector:
++    app: postgres
++  ports:
++    - name: postgres
++      port: 5432
++      targetPort: 5432
++---
++# Source: Tazama/charts/valkey/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++spec:
++  type: ClusterIP
++  ports:
++    - port: 6379
++      targetPort: tcp
++      protocol: TCP
++      name: tcp
++  selector:
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++---
++# Source: Tazama/charts/nats/templates/nats-box/deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  labels:
++    app.kubernetes.io/component: nats-box
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-box
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats-box
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++  template:
++    metadata:
++      labels:
++        app.kubernetes.io/component: nats-box
++        app.kubernetes.io/instance: tazama
++        app.kubernetes.io/managed-by: Helm
++        app.kubernetes.io/name: nats
++        app.kubernetes.io/version: 2.11.9
++        helm.sh/chart: nats-1.3.14
++    spec:
++      containers:
++      - args:
++        - sh
++        - -ec
++        - trap true INT TERM; sleep infinity & wait
++        command:
++        - sh
++        - -ec
++        - |
++          work_dir="$(pwd)"
++          mkdir -p "$XDG_CONFIG_HOME/nats"
++          cd "$XDG_CONFIG_HOME/nats"
++          if ! [ -s context ]; then
++            ln -s /etc/nats-contexts context
++          fi
++          if ! [ -f context.txt ]; then
++            echo -n "default" > context.txt
++          fi
++          cd "$work_dir"
++          exec /entrypoint.sh "$@"
++        - --
++        image: natsio/nats-box:0.18.0
++        name: nats-box
++        volumeMounts:
++        - mountPath: /etc/nats-contexts
++          name: contexts
++      enableServiceLinks: false
++      volumes:
++      - name: contexts
++        secret:
++          secretName: tazama-nats-box-contexts
++---
++# Source: Tazama/charts/pgadmin/templates/deployment.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: pgadmin
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: pgadmin
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app: pgadmin
++  template:
++    metadata:
++      labels:
++        app: pgadmin
++    spec:
++      containers:
++        - name: pgadmin
++          image: dpage/pgadmin4:latest
++          imagePullPolicy: IfNotPresent
++          env:
++            - name: PGADMIN_DEFAULT_EMAIL
++              value: admin@tazama.com
++            - name: PGADMIN_DEFAULT_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: pgadmin
++                  key: pgadmin-password
++          ports:
++            - containerPort: 80
++          volumeMounts:
++            - name: servers
++              subPath: servers.json
++              mountPath: /pgadmin4/servers.json
++      volumes:
++        - name: servers
++          configMap:
++            name: pgadmin-servers
++---
++# Source: Tazama/charts/postgres/templates/deployment.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app: postgres
++  template:
++    metadata:
++      labels:
++        app: postgres
++    spec:
++      containers:
++        - name: postgres
++          image: postgres:16
++          imagePullPolicy: IfNotPresent
++          env:
++            - name: POSTGRES_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++          ports:
++            - containerPort: 5432
++          volumeMounts:
++            - name: postgres-data
++              mountPath: /var/lib/postgresql/data
++      volumes:
++        - name: postgres-data
++          persistentVolumeClaim:
++            claimName: postgres-pvc
++---
++# Source: Tazama/charts/valkey/templates/deploy_valkey.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++spec:
++  replicas: 1
++  strategy:
++    type: RollingUpdate
++  selector:
++    matchLabels:
++      app.kubernetes.io/name: valkey
++      app.kubernetes.io/instance: tazama
++  template:
++    metadata:
++      labels:
++        app.kubernetes.io/name: valkey
++        app.kubernetes.io/instance: tazama
++        checksum/initconfig: 34821a9c5952b4b9340d394588c95e2f
++    spec:
++      automountServiceAccountToken: false
++      serviceAccountName: tazama-valkey
++      securityContext:
++        fsGroup: 1000
++        runAsGroup: 1000
++        runAsUser: 1000
++      
++      initContainers:
++        - name: valkey-init
++          image: "docker.io/valkey/valkey:8.1.4"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            capabilities:
++              drop:
++              - ALL
++            readOnlyRootFilesystem: true
++            runAsNonRoot: true
++            runAsUser: 1000
++          command: [ "/scripts/init.sh" ]
++          volumeMounts:
++            - name: valkey-data
++              mountPath: /data
++            - name: scripts
++              mountPath: /scripts
++
++      containers:
++        - name: tazama-valkey
++          image: "docker.io/valkey/valkey:8.1.4"
++          command: [ "valkey-server" ]
++          args: [ "/data/conf/valkey.conf" ]
++          securityContext:
++            capabilities:
++              drop:
++              - ALL
++            readOnlyRootFilesystem: true
++            runAsNonRoot: true
++            runAsUser: 1000
++          env:
++            - name: VALKEY_LOGLEVEL
++              value: "notice"
++          ports:
++            - name: tcp
++              containerPort: 6379
++              protocol: TCP
++          startupProbe:
++            exec:
++              command: [ "sh", "-c", "valkey-cli ping" ]
++          livenessProbe:
++            exec:
++              command: [ "sh", "-c", "valkey-cli ping" ]
++          resources:
++            {}
++          volumeMounts:
++            - name: valkey-data
++              mountPath: /data
++      volumes:
++        - name: scripts
++          configMap:
++            name: tazama-valkey-init-scripts
++            defaultMode: 0555
++        - name: valkey-data
++          emptyDir: {}
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-controller-statefulset.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  serviceName: tazama-jenkins
++  replicas: 1
++  selector:
++    matchLabels:
++      "app.kubernetes.io/component": "jenkins-controller"
++      "app.kubernetes.io/instance": "tazama"
++  template:
++    metadata:
++      labels:
++        "app.kubernetes.io/name": 'jenkins'
++        "app.kubernetes.io/managed-by": "Helm"
++        "app.kubernetes.io/instance": "tazama"
++        "app.kubernetes.io/component": "jenkins-controller"
++        "helm.sh/chart": "jenkins-5.8.86"
++      annotations:
++        checksum/config: 29c4743e00261e40627b0d02f57f2095f5743450872583edae889101cb063b12
++    spec:
++      enableServiceLinks: false
++      securityContext:
++    
++        runAsUser: 1000
++        fsGroup: 1000
++        runAsNonRoot: true
++      serviceAccountName: "tazama-jenkins"
++      automountServiceAccountToken: true
++      initContainers:
++        - name: config-reload-init
++          image: "docker.io/kiwigrid/k8s-sidecar:1.30.7"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++          env:
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: LABEL
++              value: "tazama-jenkins-jenkins-config"
++            - name: FOLDER
++              value: "/var/jenkins_home/casc_configs"
++            - name: NAMESPACE
++              value: 'dom-test-2026'
++            - name: METHOD
++              value: "LIST"
++        
++          resources:
++            {}
++          volumeMounts:
++            - name: sc-config-volume
++              mountPath: "/var/jenkins_home/casc_configs"
++            - name: jenkins-home
++              mountPath: /var/jenkins_home
++
++        - name: "init"
++          image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++          imagePullPolicy: "Always"
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++            runAsGroup: 1000
++            runAsUser: 1000
++          command: [ "sh", "/var/jenkins_config/apply_config.sh" ]
++          resources:
++            limits:
++              cpu: 2000m
++              memory: 4096Mi
++            requests:
++              cpu: 50m
++              memory: 256Mi
++          volumeMounts:
++            - mountPath: /var/jenkins_home
++              name: jenkins-home
++            - mountPath: /var/jenkins_config
++              name: jenkins-config
++            - mountPath: /usr/share/jenkins/ref/plugins
++              name: plugins
++            - mountPath: /var/jenkins_plugins
++              name: plugin-dir
++            - mountPath: /tmp
++              name: tmp-volume
++      containers:
++        - name: jenkins
++          image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++          imagePullPolicy: "Always"
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++            runAsGroup: 1000
++            runAsUser: 1000
++          args: [ "--httpPort=8080"]
++          env:
++            - name: SECRETS
++              value: /run/secrets/additional
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: JAVA_OPTS
++              value: >-
++                 -Dcasc.reload.token=$(POD_NAME) 
++            - name: JENKINS_OPTS
++              value: >-
++                 --webroot=/var/jenkins_cache/war 
++            - name: JENKINS_SLAVE_AGENT_PORT
++              value: "50000"
++
++            - name: CASC_JENKINS_CONFIG
++              value: /var/jenkins_home/casc_configs
++          ports:
++            - containerPort: 8080
++              name: http
++            - containerPort: 50000
++              name: agent-listener
++          startupProbe:
++            failureThreshold: 12
++            httpGet:
++              path: '/login'
++              port: http
++            periodSeconds: 10
++            timeoutSeconds: 5
++          livenessProbe:
++            failureThreshold: 5
++            httpGet:
++              path: '/login'
++              port: http
++            initialDelaySeconds: null
++            periodSeconds: 10
++            timeoutSeconds: 5
++          readinessProbe:
++            failureThreshold: 3
++            httpGet:
++              path: '/login'
++              port: http
++            initialDelaySeconds: null
++            periodSeconds: 10
++            timeoutSeconds: 5
++          resources:
++            limits:
++              cpu: 2000m
++              memory: 4096Mi
++            requests:
++              cpu: 50m
++              memory: 256Mi
++          volumeMounts:
++            - mountPath: /var/jenkins_home
++              name: jenkins-home
++              readOnly: false
++            - mountPath: /var/jenkins_config
++              name: jenkins-config
++              readOnly: true
++            - mountPath: /usr/share/jenkins/ref/plugins/
++              name: plugin-dir
++              readOnly: false
++            - name: sc-config-volume
++              mountPath: /var/jenkins_home/casc_configs
++            - name: jenkins-secrets
++              mountPath: /run/secrets/additional
++              readOnly: true
++            - name: jenkins-cache
++              mountPath: /var/jenkins_cache
++            - mountPath: /tmp
++              name: tmp-volume
++        - name: config-reload
++          image: "docker.io/kiwigrid/k8s-sidecar:1.30.7"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++          env:
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: LABEL
++              value: "tazama-jenkins-jenkins-config"
++            - name: FOLDER
++              value: "/var/jenkins_home/casc_configs"
++            - name: NAMESPACE
++              value: 'dom-test-2026'
++            - name: REQ_URL
++              value: "http://localhost:8080/reload-configuration-as-code/?casc-reload-token=$(POD_NAME)"
++            - name: REQ_METHOD
++              value: "POST"
++            - name: REQ_RETRY_CONNECT
++              value: "10"
++        
++          resources:
++            {}
++          volumeMounts:
++            - name: sc-config-volume
++              mountPath: "/var/jenkins_home/casc_configs"
++            - name: jenkins-home
++              mountPath: /var/jenkins_home
++
++      volumes:
++      - name: plugins
++        emptyDir: {}
++      - name: jenkins-config
++        configMap:
++          name: tazama-jenkins
++      - name: plugin-dir
++        emptyDir: {}
++      - name: jenkins-secrets
++        projected:
++          sources:
++          - secret:
++              name: tazama-jenkins
++              items:
++                - key: jenkins-admin-user
++                  path: chart-admin-username
++                - key: jenkins-admin-password
++                  path: chart-admin-password
++      - name: jenkins-cache
++        emptyDir: {}
++      - name: jenkins-home
++        persistentVolumeClaim:
++          claimName: tazama-jenkins
++      - name: sc-config-volume
++        emptyDir: {}
++      - name: tmp-volume
++        emptyDir: {}
++---
++# Source: Tazama/charts/nats/templates/stateful-set.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  podManagementPolicy: Parallel
++  replicas: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++  serviceName: tazama-nats-headless
++  template:
++    metadata:
++      annotations:
++        checksum/config: 9272ab7979cec4022ae9301d165c204127a26d8a2d2348b944ccd1034ca0d284
++      labels:
++        app.kubernetes.io/component: nats
++        app.kubernetes.io/instance: tazama
++        app.kubernetes.io/managed-by: Helm
++        app.kubernetes.io/name: nats
++        app.kubernetes.io/version: 2.11.9
++        helm.sh/chart: nats-1.3.14
++    spec:
++      containers:
++      - args:
++        - --config
++        - /etc/nats-config/nats.conf
++        env:
++        - name: POD_NAME
++          valueFrom:
++            fieldRef:
++              fieldPath: metadata.name
++        - name: SERVER_NAME
++          value: $(POD_NAME)
++        image: nats:2.11.9-alpine
++        lifecycle:
++          preStop:
++            exec:
++              command:
++              - nats-server
++              - -sl=ldm=/var/run/nats/nats.pid
++        livenessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /healthz?js-enabled-only=true
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 30
++          successThreshold: 1
++          timeoutSeconds: 5
++        name: nats
++        ports:
++        - containerPort: 4222
++          name: nats
++        - containerPort: 8222
++          name: monitor
++        readinessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /healthz?js-server-only=true
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 1
++          timeoutSeconds: 5
++        startupProbe:
++          failureThreshold: 90
++          httpGet:
++            path: /healthz
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 1
++          timeoutSeconds: 5
++        volumeMounts:
++        - mountPath: /etc/nats-config
++          name: config
++        - mountPath: /var/run/nats
++          name: pid
++      - args:
++        - -pid
++        - /var/run/nats/nats.pid
++        - -config
++        - /etc/nats-config/nats.conf
++        image: natsio/nats-server-config-reloader:0.19.1
++        name: reloader
++        volumeMounts:
++        - mountPath: /var/run/nats
++          name: pid
++        - mountPath: /etc/nats-config
++          name: config
++      enableServiceLinks: false
++      shareProcessNamespace: true
++      terminationGracePeriodSeconds: 60
++      volumes:
++      - configMap:
++          name: tazama-nats-config
++        name: config
++      - emptyDir: {}
++        name: pid
++  volumeClaimTemplates: null
++---
++# Source: Tazama/charts/pgadmin/templates/service.yaml
++# SPDX-License-Identifier: Apache-2.0
++---
++# Source: Tazama/charts/postgres/templates/service.yaml
++# SPDX-License-Identifier: Apache-2.0
++
+diff --git a/Infrastructure/rendered.yaml b/Infrastructure/rendered.yaml
+new file mode 100644
+index 0000000..a0e5987
+--- /dev/null
++++ b/Infrastructure/rendered.yaml
+@@ -0,0 +1,2237 @@
++---
++# Source: Tazama/charts/elasticsearch/templates/poddisruptionbudget.yaml
++apiVersion: policy/v1
++kind: PodDisruptionBudget
++metadata:
++  name: "elasticsearch-master-pdb"
++spec:
++  maxUnavailable: 1
++  selector:
++    matchLabels:
++      app: "elasticsearch-master"
++---
++# Source: Tazama/charts/nats/templates/pod-disruption-budget.yaml
++apiVersion: policy/v1
++kind: PodDisruptionBudget
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  maxUnavailable: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/apm-server/templates/serviceaccount.yaml
++apiVersion: v1
++kind: ServiceAccount
++metadata:
++  name: tazama-apm-server
++  annotations:
++  labels:
++    app: "tazama-apm-server"
++    chart: "apm-server-8.5.1"
++    heritage: "Helm"
++    release: "tazama"
++---
++# Source: Tazama/charts/jenkins/templates/service-account.yaml
++apiVersion: v1
++kind: ServiceAccount
++automountServiceAccountToken: true
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++---
++# Source: Tazama/charts/valkey/templates/serviceaccount.yaml
++apiVersion: v1
++kind: ServiceAccount
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++automountServiceAccountToken: false
++---
++# Source: Tazama/charts/elasticsearch/templates/secret-cert.yaml
++apiVersion: v1
++kind: Secret
++type: kubernetes.io/tls
++metadata:
++  name: elasticsearch-master-certs
++  labels:
++    app: elasticsearch-master
++    chart: "elasticsearch"
++    heritage: Helm
++    release: tazama
++data:
++  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURrakNDQW5xZ0F3SUJBZ0lQVGJpQi9RSWZmVitvR0VBczRRb3JNQTBHQ1NxR1NJYjNEUUVCQ3dVQU1Cc3gKR1RBWEJnTlZCQU1URUdWc1lYTjBhV056WldGeVkyZ3RZMkV3SGhjTk1qWXdOVEV4TURjd05qRXhXaGNOTWpjdwpOVEV4TURjd05qRXhXakFmTVIwd0d3WURWUVFERXhSbGJHRnpkR2xqYzJWaGNtTm9MVzFoYzNSbGNqQ0NBU0l3CkRRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFMamxUaDhxYkY3ZC9TNUM5MXVJUUEzQ0ZMQS8KSXgvYkhHVUxTbkZuRkNyWHZMeEpuK1pHbllZdm5CbTdqRGxyOFljZkxvMWNHWlg2OXI0dXA1dWo3RnROUFpXSgpqSUVqRlFmQkc0T21vWUR6dDV0UkJ4bklGZlB4VlZDbWlyQlhMRHZKVEZwRXJQNnRYV1czMTVmWWd5YkUyU3VMCmk1cHh3OFRoWVJtcFFPSk9FaUdTZlY3dDR1Sm9LdSt5OHIxRHoydVhPR3g2ZDlrd0w3b2J2dnljMk5MdGJaOHQKNk1CM05yMlJLVXJHcW1qMTFKN3UyeUNGV1pac20zVk9VWE5HNDRJNzR5dEY5dElEaDFUd0VhaFl0aFdyeHRuMQphdDNva3E3dGJ4ejYvbE5YeDloZnV5UU4xeSsyUHJYNUdTOHB3b2tMYlZ0Tm41cGZUditYaUgrb1U0VUNBd0VBCkFhT0J6akNCeXpBT0JnTlZIUThCQWY4RUJBTUNCYUF3SFFZRFZSMGxCQll3RkFZSUt3WUJCUVVIQXdFR0NDc0cKQVFVRkJ3TUNNQXdHQTFVZEV3RUIvd1FDTUFBd0h3WURWUjBqQkJnd0ZvQVVCa2V3OWpFcysrYUV2Rkh4dGZPWQo1bldoZUVjd2F3WURWUjBSQkdRd1lvSVVaV3hoYzNScFkzTmxZWEpqYUMxdFlYTjBaWEtDSW1Wc1lYTjBhV056ClpXRnlZMmd0YldGemRHVnlMbVJ2YlMxMFpYTjBMVEl3TWphQ0ptVnNZWE4wYVdOelpXRnlZMmd0YldGemRHVnkKTG1SdmJTMTBaWE4wTFRJd01qWXVjM1pqTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFCVnRnTzEreCtyS1d4UApjSklSbTdWeS82K2o3czNvQXJFWWRNUnJpbVAwUXZwbGJ3dlVlOGlDaG1Cci96bUEwWkdNTDBUQjlZTXBML1BTCm9XL1NuV1dDVXl1UXNhaEpnQy9jTmpaM0tKRDlPcjR3V2NuQVlSTVBaVXhKR0QvRVFMcGo2bmREdW04Sms4M2sKUXVLdkNUNCsxYWUxeDVNbHlOSW4ybzJaSm1PTGRkcnNqbFFrTHMrVGxEQkk5RE9Lb1JMdWlJQnErY0kvMWFCbgo4dEk5bCtCYmFFdGlLUmYzRFBQZndZWjBIUGFKdjJBRUxDV0tidFJIQ1BZeW9uUHNTaWM0V0J2bWJXVG5UanZFClNVMzhKTEFVMTExaDlJdVRIR3FBdWF1VUxoWHhacDA4bTNFWGRhVExQOUlBdklWNEg0aGR2N050Tm1ZdjBUNFQKTnEwcnE4NnYKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
++  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBdU9WT0h5cHNYdDM5TGtMM1c0aEFEY0lVc0Q4akg5c2NaUXRLY1djVUt0ZTh2RW1mCjVrYWRoaStjR2J1TU9XdnhoeDh1alZ3WmxmcjJ2aTZubTZQc1cwMDlsWW1NZ1NNVkI4RWJnNmFoZ1BPM20xRUgKR2NnVjgvRlZVS2FLc0Zjc084bE1Xa1NzL3ExZFpiZlhsOWlESnNUWks0dUxtbkhEeE9GaEdhbEE0azRTSVpKOQpYdTNpNG1ncTc3THl2VVBQYTVjNGJIcDMyVEF2dWh1Ky9KelkwdTF0bnkzb3dIYzJ2WkVwU3NhcWFQWFVudTdiCklJVlpsbXliZFU1UmMwYmpnanZqSzBYMjBnT0hWUEFScUZpMkZhdkcyZlZxM2VpU3J1MXZIUHIrVTFmSDJGKzcKSkEzWEw3WSt0ZmtaTHluQ2lRdHRXMDJmbWw5Ty81ZUlmNmhUaFFJREFRQUJBb0lCQUFmKzBud0NoNkVxbEZJMQp6eUNFS2REdWZacUpnR2xXUGtvWVRPWE9nVTdBK1laaTRLbENrSGxIQWNjVEZ5TThpYnRBRy9FODlGWkovZldICmF2UU9DS0NDSEpHazJ4Q1NoY3hLQzNpTDhodnpiaE1uVTlsSGo3dDJ5aXVzcC82c0psdUhmdWZBWklLMjJIMFgKa0JrZTRiMEJjaXF4NUIyUG9kbVhyVzFBcG0raXdkRDNQZG9LaU80djlYVCs4Z0taSjlvdk85bHk2aEx3ZUZOcwpEaUdZU3hLWHhROVp2ZCtTdFZHZUJGQndkeUtmR09HMWZ1TmRlNkhQU2hlS0ZvbytwYVJ3b3dRMDRoRzM2WnN2CmN1Sk4ra1ZJNlpoZjRSYWY2RDFQTUZTa1FoNVB1K2dxTThLQVRhVEFLUm93R09tc1ZHWkdTVEplL05hY2M4cXAKSWdwbURKa0NnWUVBMmxwdU5sa2Noazg3cDlvN3NHcmlkd1dwWkVPZ0h6WUQrdkNMYzhaK1gyTmVPL3l5d3k0NApVTndUMWZhTWREeGg4eDRucWFRLzV5eHlwNjgrWHRuZzRpdHl1QU1aWDFGVFdQUGlkVVE2Qmg2TzBhdVhvUW5xCkExbEhqbmpoNnhDRGt1WFRaeW5wWlBCRS9HS0REVzlzV01RcFpjSlBic1IyMDN4ckQ1QlJ3aWNDZ1lFQTJNWWsKa0o0VkJjcU9wUFphL0JYQXNlTFpsMlVnSUJwY2dudDdqcytsQWg0dlN3SE1nL0IvMnpFNDNEc0xkVTdoK09xYwozVGZ5YnE4V1UwVU5hVVBXWTFkTmRwa1pEaVRwc1hFSmN3cWRHWW9ROUZlYTVyQlFVb1dUVFR3cHp1czRkSXpUCko2YXJrY1RLS0tQdHVlM2dvczNhcTVTajdqVUFTeXk3ck5QZWhITUNnWUVBcTh1WWlTUWxnRHJZdWVESE02OTAKektaa3R5RkoyeVNaanhjdzhQOU1NR3F6R3NsZ01KYXQ4bGlsTnFQTHNDeE4rSVZTT1hPa1g1TW1CbTZueU9MdAp2NlRsbG9mQnI3QUJ2cXZzRWMyRFJZdEhYUW4vdTlGY0VCUnZhMVlLa2ZLbFFxK1dXOFdxL3lMWGRDZGg2dkV1CnNzeHJzY2RtemNTL3BQZHdHSWU0KytNQ2dZRUF6UlAvYWJXMGE4c3EwaE9qRmhPNlBsQS96SVBHTmJqYXhqTHUKUExoakFqTHVTUWJGcGhqenpMbXZjbUtGdjVCR0praEc2TjVTQTdhdTUwNVBsc092NGtHb3JrZSt0V3ZranBOQwova3dQUGljcFRSQklJbkN4UExEVUgyQ0lxUkpOVWE0YzRjbERUVitnWlh4WW5lclc5dzdMRGtKTUtFS0tLWlNEClpNajRIZE1DZ1lBZEZ6RnJBdFo0TUNWZ3NxOGdiR0thSUp6eDFhVnlYTVpXVUlUYjRycHBhS3FPYStMemYwRE0KeXhURTc1b3hQN3Q1MkJxZVpEbVVLUWk0OGtsSDhBTUJtdTdtSGVQSDhidk5mR0U4Wk9PUWlTd3hPc1BYM1kxTgpEWGFndHpDajAxa0tIdHhVN2hFbVJ5U3hJaUFxMmN1WGp4Z1NVa3FBYmVUUlcwVnV3M1hQTVE9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
++  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURJVENDQWdtZ0F3SUJBZ0lRV2JWVjExa1U5STlIb2hXT0tMMXl4ekFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWUVFERXhCbGJHRnpkR2xqYzJWaGNtTm9MV05oTUI0WERUSTJNRFV4TVRBM01EWXhNVm9YRFRJMwpNRFV4TVRBM01EWXhNVm93R3pFWk1CY0dBMVVFQXhNUVpXeGhjM1JwWTNObFlYSmphQzFqWVRDQ0FTSXdEUVlKCktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQUx0ZTVDVWYxQlc3czg3VHE4QnJTaVlSa2tjOXRMMGMKM0RENnRiWEVmVXV0SGN5Z29IL1ZzTm04M0hqcHF3NE8xWDJBT1ZTSXNvT2EwK1R0SWZaLzdwRTZzbDQ5Tm56SQptZjcrQSthZmpad2FsZmwzTTRlSCtuaWgvNllJNjc2NFFvUnl4aTBjUTJMcTNKN0N3R01sb0V5SE9OTWk0cWNkCndmaFJQdGFlNXlZU2ppNEc3VnltcWhOT0tRTVlta1pNSkVQbXIzZUJCdzVFM3J4YlFWeXQ2Z3dqNWRGVkQ0UEQKb0NLYVhKTzlDN2JWdHJLR1lrYnlYS3d3NHVwdVNuSm9CeGVwQ0hseVA4aHdKUDg5SVhCZU1nYkRrOCt4aExGcwpJWisvVG5ucG5KdEE4cFMzSE16ZFpnRll4THgvYkVsUm8xMFhsUjBneGhMZkVyd3VSMGRYOGFjQ0F3RUFBYU5oCk1GOHdEZ1lEVlIwUEFRSC9CQVFEQWdLa01CMEdBMVVkSlFRV01CUUdDQ3NHQVFVRkJ3TUJCZ2dyQmdFRkJRY0QKQWpBUEJnTlZIUk1CQWY4RUJUQURBUUgvTUIwR0ExVWREZ1FXQkJRR1I3RDJNU3o3NW9TOFVmRzE4NWptZGFGNApSekFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBZkZiUVVidC9FTFFkeUNGN2VoWkFMelJnSy9DbEJBRTAxbmo0ClRHOVVvdFRyRWVjRmtZdkhlVHZ1bm5hdGRiSWdFL3dLcnNMbHNoVWx3VEtLS09kOStlQkM5WVdKSi9DTXMyanUKMFNxWHM1elJhbFE1N1ZlN2lPK0xuUXB5Qkt2eEEyOVJUdE5RU09uYlBWMmYxQmQ4ZUlyNDJNV3ZSSkFkNnZzZwp1NmdFdGE5OWtFQnVPd0JpQnpQVDBiZEJldFZlQ0RTYWxHcDhONnBIMDJiWlgyQ0oyNk5lV0JkZFRFWUtyRCtNCjAvSEVXOHpPTEsvcnB1REpic1huQmJGcU1Qa0JQeHhGbXdlZGJ4M2owYkhWN3JaanBzUEQ3dG1yT25DZDFjbXIKUkZSZUNNVUQ1Qjl3eFBJMm15bmlrcmd1NXRGeFpNaUplZkYrOXBleTZvaXFHRUlpV3c9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
++---
++# Source: Tazama/charts/elasticsearch/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: elasticsearch-master-credentials
++  labels:
++    heritage: "Helm"
++    release: "tazama"
++    chart: "elasticsearch"
++    app: "elasticsearch-master"
++type: Opaque
++data:
++  username: ZWxhc3RpYw==
++  password: "dGpNYTY5Y3BMZ1VNdXBGYw=="
++---
++# Source: Tazama/charts/jenkins/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++type: Opaque
++data:
++  jenkins-admin-password: "OEZQT2oyUGxuc1dmb0tVV1FvbDlzeA=="
++  jenkins-admin-user: "YWRtaW4="
++---
++# Source: Tazama/charts/nats/templates/nats-box/contexts-secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  labels:
++    app.kubernetes.io/component: nats-box
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-box-contexts
++stringData:
++  default.json: |
++    {
++      "url": "nats://tazama-nats"
++    }
++type: Opaque
++---
++# Source: Tazama/charts/pgadmin/templates/secret.yaml
++apiVersion: v1
++kind: Secret
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++type: Opaque
++stringData:
++  pgadmin-password: "123"
++---
++# Source: Tazama/charts/postgres/templates/secret.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++apiVersion: v1
++kind: Secret
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++type: Opaque
++data:
++  admin-password: "OU53V0tlYnM5Qmhh"
++---
++# Source: Tazama/charts/apm-server/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-apm-server-config
++  labels:
++    app: "tazama-apm-server"
++    chart: "apm-server-8.5.1"
++    heritage: "Helm"
++    release: "tazama"
++data:
++  apm-server.yml: |
++    apm-server:
++      host: "0.0.0.0:8200"
++    
++    queue: {}
++    
++    output.elasticsearch:
++      hosts: ["http://elasticsearch-master:9200"]
++      username: "${ELASTICSEARCH_USERNAME}"
++      password: "${ELASTICSEARCH_PASSWORD}"
++      ## If SSL is enabled
++      # protocol: https
++      # ssl.certificate_authorities:
++      #  - /usr/share/apm-server/config/certs/elastic-ca.pem
++---
++# Source: Tazama/charts/jenkins/templates/config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++data:
++  apply_config.sh: |-
++    set -e
++    echo "disable Setup Wizard"
++    # Prevent Setup Wizard when JCasC is enabled
++    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.UpgradeWizard.state
++    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.InstallUtil.lastExecVersion
++    echo "download plugins"
++    # Install missing plugins
++    cp /var/jenkins_config/plugins.txt /var/jenkins_home;
++    rm -rf /usr/share/jenkins/ref/plugins/*.lock
++    version () { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
++    if [ -f "/usr/share/jenkins/jenkins.war" ] && [ -n "$(command -v jenkins-plugin-cli)" 2>/dev/null ] && [ $(version $(jenkins-plugin-cli --version)) -ge $(version "2.1.1") ]; then
++      jenkins-plugin-cli --verbose --war "/usr/share/jenkins/jenkins.war" --plugin-file "/var/jenkins_home/plugins.txt" --latest false;
++    else
++      /usr/local/bin/install-plugins.sh `echo $(cat /var/jenkins_home/plugins.txt)`;
++    fi
++    echo "copy plugins to shared volume"
++    # Copy plugins to shared volume
++    yes n | cp -i /usr/share/jenkins/ref/plugins/* /var/jenkins_plugins/;
++    echo "finished initialization"
++  plugins.txt: |-
++    kubernetes:4371.vb_33b_086d54a_1
++    workflow-aggregator:608.v67378e9d3db_1
++    git:5.7.0
++    configuration-as-code:1985.vdda_32d0c4ea_b_
++    azure-vm-agents:901.ved986df424b_3
++    authorize-project:1.7.1
++    azure-cli:0.9
++    azure-credentials:312.v0f3973cd1e59
++    azure-keyvault:237.v301692369180
++    azure-sdk:157.v855da_0b_eb_dc2
++    command-launcher:107.v773860566e2e
++    config-file-provider:968.ve1ca_eb_913f8c
++    docker-commons:457.v0f62a_94f11a_3
++    github-api:1.321-488.v9b_c0da_9533f8
++    github-branch-source:1772.va_69eda_d018d4
++    htmlpublisher:1.32
++    jjwt-api:0.11.5-120.v0268cf544b_89
++    kubernetes-cli:1.12.1
++    kubernetes-pipeline-devops-steps:1.6
++    kubernetes-credentials-provider:1.258.v95949f923a_a_e
++    nodejs:1.6.1
++    npm-yarn-wrapper-steps:0.4.0
++    pipeline-graph-analysis:202.va_d268e64deb_3
++    pipeline-npm:204.v4dc4c2202625
++    ssh-agent:346.vda_a_c4f2c8e50
++    ssh-slaves:2.948.vb_8050d697fec
++    sshd:3.322.v159e91f6a_550
++    swarm:3.44
++    token-macro:444.v52de7e9c573d
++    dark-theme:416.v535839b_c4e88
++    jobConfigHistory:1229.v3039470161a_d
++---
++# Source: Tazama/charts/jenkins/templates/jcasc-config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: "tazama-jenkins-jenkins-jcasc-config"
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++    tazama-jenkins-jenkins-config: "true"
++data:
++  jcasc-default-config.yaml: |-
++    jenkins:
++      authorizationStrategy:
++        loggedInUsersCanDoAnything:
++          allowAnonymousRead: false
++      securityRealm:
++        local:
++          allowsSignup: false
++          enableCaptcha: false
++          users:
++          - id: "${chart-admin-username}"
++            name: "Jenkins Admin"
++            password: "${chart-admin-password}"
++      disableRememberMe: false
++      mode: NORMAL
++      numExecutors: 0
++      labelString: ""
++      projectNamingStrategy: "standard"
++      markupFormatter:
++        plainText
++      clouds:
++      - kubernetes:
++          containerCapStr: "10"
++          defaultsProviderTemplate: ""
++          connectTimeout: "5"
++          readTimeout: "15"
++          jenkinsUrl: "http://tazama-jenkins.dom-test-2026.svc.cluster.local:8080"
++          jenkinsTunnel: "tazama-jenkins-agent.dom-test-2026.svc.cluster.local:50000"
++          skipTlsVerify: false
++          usageRestricted: false
++          maxRequestsPerHostStr: "32"
++          retentionTimeout: "5"
++          waitForPodSec: "600"
++          name: "kubernetes"
++          namespace: "dom-test-2026"
++          restrictedPssSecurityContext: false
++          serverUrl: "https://kubernetes.default"
++          credentialsId: ""
++          podLabels:
++          - key: "jenkins/tazama-jenkins-agent"
++            value: "true"
++          templates:
++            - name: "default"
++              namespace: "dom-test-2026"
++              id: d05f1a832f8657e0e01902696b5ad35b806d9d41ec6657c6d16c768c8d712d47
++              containers:
++              - name: "jnlp"
++                alwaysPullImage: false
++                args: "^${computer.jnlpmac} ^${computer.name}"
++                envVars:
++                  - envVar:
++                      key: "JENKINS_URL"
++                      value: "http://tazama-jenkins.dom-test-2026.svc.cluster.local:8080/"
++                image: "jenkins/inbound-agent:3327.v868139a_d00e0-7"
++                privileged: "false"
++                resourceLimitCpu: 512m
++                resourceLimitMemory: 512Mi
++                resourceRequestCpu: 512m
++                resourceRequestMemory: 512Mi
++                ttyEnabled: false
++                workingDir: /home/jenkins/agent
++              idleMinutes: 0
++              instanceCap: 2147483647
++              label: "tazama-jenkins-agent "
++              nodeUsageMode: "NORMAL"
++              podRetention: Never
++              showRawYaml: true
++              serviceAccount: "default"
++              slaveConnectTimeoutStr: "100"
++              yamlMergeStrategy: override
++              inheritYamlMergeStrategy: false
++      slaveAgentPort: 50000
++      crumbIssuer:
++        standard:
++          excludeClientIPFromCrumb: true
++    security:
++      apiToken:
++        creationOfLegacyTokenEnabled: false
++        tokenGenerationOnCreationEnabled: false
++        usageStatisticsEnabled: true
++    unclassified:
++      location:
++        url: http://tazama-jenkins:8080
++---
++# Source: Tazama/charts/nats/templates/config-map.yaml
++apiVersion: v1
++data:
++  nats.conf: |
++    {
++      "http_port": 8222,
++      "lame_duck_duration": "30s",
++      "lame_duck_grace_period": "10s",
++      "pid_file": "/var/run/nats/nats.pid",
++      "port": 4222,
++      "server_name": $SERVER_NAME
++    }
++kind: ConfigMap
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-config
++---
++# Source: Tazama/charts/pgadmin/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: pgadmin-servers
++  namespace: dom-test-2026
++  labels:
++    app: pgadmin
++data:
++  servers.json: |
++    {
++      "Servers": {
++        "1": {
++            "Name": "Tazama",
++            "Group": "Servers",
++            "Port": 5432,
++            "Username": "postgres",
++            "Host": "postgres",
++            "MaintenanceDB": "postgres",
++            "ConnectionParameters": {
++                "sslmode": "prefer",
++                "connect_timeout": 10
++            }
++        }
++      }
++    }
++---
++# Source: Tazama/charts/postgres/templates/configmap.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: postgres-migrate-sql
++data:
++  01_migrate.sql: |
++    create database configuration;
++    create database event_history;
++    create database raw_history;
++    create database evaluation;
++    
++    \connect configuration;
++
++    create table network_map (
++        configuration jsonb not null,
++        tenantId text generated always as (configuration ->> 'tenantId') stored
++    );
++
++    create table typology (
++        configuration jsonb not null,
++        typologyId text generated always as (configuration ->> 'id') stored,
++        typologyCfg text generated always as (configuration ->> 'cfg') stored,
++        tenantId text generated always as (configuration ->> 'tenantId') stored,
++        primary key (typologyId, typologyCfg, tenantId)
++    );
++
++    create table rule (
++        configuration jsonb not null,
++        ruleId text generated always as (configuration ->> 'id') stored,
++        ruleCfg text generated always as (configuration ->> 'cfg') stored,
++        tenantId text generated always as (configuration ->> 'tenantId') stored,
++        primary key (ruleId, ruleCfg, tenantId)
++    );
++
++    \connect evaluation;
++
++    create table evaluation (
++        evaluation jsonb not null,
++        messageId text generated always as (
++            evaluation -> 'transaction' -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        tenantId text generated always as (evaluation -> 'transaction' ->> 'TenantId') stored
++    );
++
++    \connect event_history;
++
++    create table account (
++        id varchar not null,
++        tenantId text not null,
++        primary key (id, tenantId)
++    );
++
++    create table entity (
++        id varchar not null,
++        tenantId text not null,
++        creDtTm timestamptz not null,
++        primary key (id, tenantId)
++    );
++
++    create table account_holder (
++        source varchar not null,
++        destination varchar not null,
++        tenantId text not null,
++        creDtTm timestamptz not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references account (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table condition (
++        id varchar generated always as (condition ->> 'condId') stored,
++        tenantId text generated always as (condition ->> 'tenantId') stored,
++        condition jsonb not null,
++        primary key (id, tenantId)
++    );
++
++    create table governed_as_creditor_account_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp text [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_creditor_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_debtor_account_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++
++    create table governed_as_debtor_by (
++        source varchar not null,
++        destination varchar not null,
++        evtTp TEXT [] not null,
++        incptnDtTm timestamptz not null,
++        xprtnDtTm timestamptz,
++        tenantId text not null,
++        foreign key (source, tenantId) references entity (id, tenantId),
++        foreign key (destination, tenantId) references condition (id, tenantId),
++        primary key (source, destination, tenantId)
++    );
++    /* transaction_relationship*/
++    create table transaction (
++        source varchar not null,
++        destination varchar not null,
++        transaction jsonb not null,
++        endToEndId text generated always as (transaction->>'EndToEndId') stored,
++        amt numeric(18, 2) generated always as (
++            (transaction->>'Amt')::numeric(18, 2)
++        ) stored,
++        ccy varchar generated always as (transaction->>'Ccy') stored,
++        msgId varchar generated always as (transaction->>'MsgId') stored,
++        creDtTm text generated always as (transaction->>'CreDtTm') stored,
++        txTp varchar generated always as (transaction->>'TxTp') stored,
++        txSts varchar generated always as (transaction->>'TxSts') stored,
++        tenantId text generated always as (transaction->>'TenantId') stored,
++        constraint unique_msgid unique (msgId, tenantId),
++        foreign key (source, tenantId) references account (id, tenantId),
++        foreign key (destination, tenantId) references account (id, tenantId),
++        primary key (endToEndId, txTp, tenantId)
++    );
++
++    create index idx_tr_cre_dt_tm on transaction (creDtTm, tenantId);
++
++    create index idx_tr_source_txtp_credttm ON transaction (source, txtp, creDtTm, tenantId);
++
++
++    create index idx_tr_pacs002_accc on transaction (endtoendid, creDtTm, tenantId)
++    where
++        txtp = 'pacs.002.001.12'
++        and txsts = 'ACCC';
++
++    create index idx_tr_dest_txtp_txsts_credttm on transaction (
++        destination,
++        txtp,
++        txsts,
++        creDtTm desc
++    ) include (source);
++
++    \connect raw_history;
++
++    create table pacs002 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'FIToFIPmtSts' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'FIToFIPmtSts' -> 'TxInfAndSts' ->> 'OrgnlEndToEndId'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_pacs002 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create table pacs008 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'FIToFICstmrCdtTrf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pacs008 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pacs008_dbtr_acct_id on pacs008 (debtorAccountId, tenantId);
++
++    create index idx_pacs008_cdtr_acct_id on pacs008 (creditorAccountId, tenantId);
++
++    create index idx_pacs008_credttm on pacs008 (creDtTm, tenantId);
++
++    create table pain001 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'CstmrCdtTrfInitn' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pain001 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pain001_dbtr_acct_id on pain001 (debtorAccountId, tenantId);
++
++    create index idx_pain001_cdtr_acct_id on pain001 (creditorAccountId, tenantId);
++
++    create index idx_pain001_credttm on pain001 (creDtTm, tenantId);
++
++    create table pain013 (
++        document jsonb not null,
++        -- cast when querying
++        creDtTm text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'GrpHdr' ->> 'CreDtTm'
++        ) stored,
++        messageId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'GrpHdr' ->> 'MsgId'
++        ) stored,
++        endToEndId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'PmtId' ->> 'EndToEndId'
++        ) stored,
++        debtorAccountId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'DbtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        creditorAccountId text generated always as (
++            document -> 'CdtrPmtActvtnReq' -> 'PmtInf' -> 'CdtTrfTxInf' -> 'CdtrAcct' -> 'Id' -> 'Othr' -> 0 ->> 'Id'
++        ) stored,
++        tenantId text generated always as (
++            document ->> 'TenantId' ) stored,
++        constraint unique_msgid_e2eid_pain013 unique (messageId, tenantId),
++        constraint message_id_not_null check (messageId is not null),
++        constraint cre_dt_tm check (creDtTm is not null),
++        constraint dbtr_acct_id_not_null check (debtorAccountId is not null),
++        constraint cdtr_acct_id_not_null check (creditorAccountId is not null),
++        primary key (endToEndId, tenantId)
++    );
++
++
++    create index idx_pain013_dbtr_acct_id on pain013 (debtorAccountId, tenantId);
++
++    create index idx_pain013_cdtr_acct_id on pain013 (creditorAccountId, tenantId);
++
++    create index idx_pain013_credttm on pain013 (creDtTm, tenantId);
++---
++# Source: Tazama/charts/valkey/templates/init_config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-valkey-init-scripts
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++data:
++  init.sh: |-
++    #!/bin/sh
++    set -euo pipefail
++
++    # Default config paths
++    VALKEY_CONFIG=${VALKEY_CONFIG_PATH:-/data/conf/valkey.conf}
++
++    LOGFILE="/data/init.log"
++    DATA_DIR="/data/conf"
++
++    # Logging function
++    log() {
++      echo "$(date) $1" | tee -a "$LOGFILE"
++    }
++
++    # Clean old log if requested
++    if [ "${KEEP_OLD_LOGS:-false}" != "true" ]; then
++      rm -f "$LOGFILE"
++    fi
++
++    if [ -f "$LOGFILE" ]; then
++      log "Detected restart of this instance ($HOSTNAME)"
++    fi
++
++    log "Creating configuration in $DATA_DIR..."
++    mkdir -p "$DATA_DIR"
++    rm -f "$VALKEY_CONFIG" 
++
++ 
++    # Base valkey.conf
++    log "Generating base valkey.conf"
++    {
++      echo "port 6379"
++      echo "protected-mode no"
++      echo "bind 0.0.0.0"
++      echo "dir /data"
++    } >>"$VALKEY_CONFIG"
++
++    # Append extra configs if present
++    if [ -f /usr/local/etc/valkey/valkey.conf ]; then
++      log "Appending /usr/local/etc/valkey/valkey.conf"
++      cat /usr/local/etc/valkey/valkey.conf >>"$VALKEY_CONFIG"
++    fi
++    if [ -d /extravalkeyconfigs ]; then
++      log "Appending files in /extravalkeyconfigs/"
++      cat /extravalkeyconfigs/* >>"$VALKEY_CONFIG"
++    fi
++---
++# Source: Tazama/charts/jenkins/templates/home-pvc.yaml
++kind: PersistentVolumeClaim
++apiVersion: v1
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  accessModes:
++    - "ReadWriteOnce"
++  resources:
++    requests:
++      storage: "8Gi"
++---
++# Source: Tazama/charts/pgadmin/templates/pvc.yaml
++apiVersion: v1
++kind: PersistentVolumeClaim
++metadata:
++  name: jenkins-pvc
++spec:
++  accessModes:
++    - ReadWriteOnce
++  resources:
++    requests:
++      storage: 8Gi
++---
++# Source: Tazama/charts/postgres/templates/pvc.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: pvc.yaml
++apiVersion: v1
++kind: PersistentVolumeClaim
++metadata:
++  name: postgres-pvc
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  storageClassName: longhorn
++  accessModes:
++    - ReadWriteOnce
++  resources:
++    requests:
++      storage: 15Gi
++---
++# Source: Tazama/charts/apm-server/templates/clusterrole.yaml
++apiVersion: rbac.authorization.k8s.io/v1
++kind: ClusterRole
++metadata:
++  name: tazama-apm-server-cluster-role
++  labels:
++    app: "tazama-apm-server"
++    chart: "apm-server-8.5.1"
++    heritage: "Helm"
++    release: "tazama"
++rules:
++- apiGroups:
++  - ""
++  resources:
++  - namespaces
++  - pods
++  verbs:
++  - get
++  - list
++  - watch
++---
++# Source: Tazama/charts/apm-server/templates/clusterrolebinding.yaml
++apiVersion: rbac.authorization.k8s.io/v1
++kind: ClusterRoleBinding
++metadata:
++  name: tazama-apm-server-cluster-role-binding
++  labels:
++    app: "tazama-apm-server"
++    chart: "apm-server-8.5.1"
++    heritage: "Helm"
++    release: "tazama"
++roleRef:
++  kind: ClusterRole
++  name: tazama-apm-server-cluster-role
++  apiGroup: rbac.authorization.k8s.io
++subjects:
++- kind: ServiceAccount
++  name: tazama-apm-server
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# This role is used to allow Jenkins scheduling of agents via Kubernetes plugin.
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: tazama-jenkins-schedule-agents
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++rules:
++- apiGroups: [""]
++  resources: ["pods", "pods/exec", "pods/log", "persistentvolumeclaims", "events"]
++  verbs: ["get", "list", "watch"]
++- apiGroups: [""]
++  resources: ["pods", "pods/exec", "persistentvolumeclaims"]
++  verbs: ["create", "delete", "deletecollection", "patch", "update"]
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# The sidecar container which is responsible for reloading configuration changes
++# needs permissions to watch ConfigMaps
++apiVersion: rbac.authorization.k8s.io/v1
++kind: Role
++metadata:
++  name: tazama-jenkins-casc-reload
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++rules:
++- apiGroups: [""]
++  resources: ["configmaps"]
++  verbs: ["get", "watch", "list"]
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++# We bind the role to the Jenkins service account. The role binding is created in the namespace
++# where the agents are supposed to run.
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: tazama-jenkins-schedule-agents
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: tazama-jenkins-schedule-agents
++subjects:
++- kind: ServiceAccount
++  name: tazama-jenkins
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/jenkins/templates/rbac.yaml
++apiVersion: rbac.authorization.k8s.io/v1
++kind: RoleBinding
++metadata:
++  name: tazama-jenkins-watch-configmaps
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++roleRef:
++  apiGroup: rbac.authorization.k8s.io
++  kind: Role
++  name: tazama-jenkins-casc-reload
++subjects:
++- kind: ServiceAccount
++  name: tazama-jenkins
++  namespace: dom-test-2026
++---
++# Source: Tazama/charts/apm-server/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-apm-server
++  labels:
++    app: apm-server
++    release: "tazama"
++    heritage: Helm
++spec:
++  type: ClusterIP
++  ports:
++    - port: 8200
++      protocol: TCP
++      name: http
++      targetPort: 8200
++  selector:
++    app: apm-server
++    release: "tazama"
++---
++# Source: Tazama/charts/elasticsearch/templates/service.yaml
++kind: Service
++apiVersion: v1
++metadata:
++  name: elasticsearch-master
++  labels:
++    heritage: "Helm"
++    release: "tazama"
++    chart: "elasticsearch"
++    app: "elasticsearch-master"
++  annotations:
++    {}
++spec:
++  type: ClusterIP
++  selector:
++    release: "tazama"
++    chart: "elasticsearch"
++    app: "elasticsearch-master"
++  publishNotReadyAddresses: false
++  ports:
++  - name: http
++    protocol: TCP
++    port: 9200
++  - name: transport
++    protocol: TCP
++    port: 9300
++---
++# Source: Tazama/charts/elasticsearch/templates/service.yaml
++kind: Service
++apiVersion: v1
++metadata:
++  name: elasticsearch-master-headless
++  labels:
++    heritage: "Helm"
++    release: "tazama"
++    chart: "elasticsearch"
++    app: "elasticsearch-master"
++  annotations:
++    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
++spec:
++  clusterIP: None # This is needed for statefulset hostnames like elasticsearch-0 to resolve
++  # Create endpoints also if the related pod isn't ready
++  publishNotReadyAddresses: true
++  selector:
++    app: "elasticsearch-master"
++  ports:
++  - name: http
++    port: 9200
++  - name: transport
++    port: 9300
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-agent-svc.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-jenkins-agent
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  ports:
++    - port: 50000
++      targetPort: 50000
++      name: agent-listener
++  selector:
++    "app.kubernetes.io/component": "jenkins-controller"
++    "app.kubernetes.io/instance": "tazama"
++  type: ClusterIP
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-controller-svc.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  ports:
++    - port: 8080
++      name: http
++      targetPort: 8080
++  selector:
++    "app.kubernetes.io/component": "jenkins-controller"
++    "app.kubernetes.io/instance": "tazama"
++  type: ClusterIP
++---
++# Source: Tazama/charts/nats/templates/headless-service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-headless
++spec:
++  clusterIP: None
++  ports:
++  - appProtocol: tcp
++    name: nats
++    port: 4222
++    targetPort: nats
++  - appProtocol: http
++    name: monitor
++    port: 8222
++    targetPort: monitor
++  publishNotReadyAddresses: true
++  selector:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/nats/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  ports:
++  - appProtocol: tcp
++    name: nats
++    port: 4222
++    targetPort: nats
++  selector:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/name: nats
++---
++# Source: Tazama/charts/pgadmin/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: pgadmin
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: pgadmin
++spec:
++  type: ClusterIP
++  selector:
++    app: pgadmin
++  ports:
++    - name: pgadmin
++      port: 80
++      targetPort: 80
++---
++# Source: Tazama/charts/postgres/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  type: ClusterIP
++  selector:
++    app: postgres
++  ports:
++    - name: postgres
++      port: 5432
++      targetPort: 5432
++---
++# Source: Tazama/charts/valkey/templates/service.yaml
++apiVersion: v1
++kind: Service
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++spec:
++  type: ClusterIP
++  ports:
++    - port: 6379
++      targetPort: tcp
++      protocol: TCP
++      name: tcp
++  selector:
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++---
++# Source: Tazama/charts/apm-server/templates/deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: tazama-apm-server
++  labels:
++    app: apm-server
++    release: "tazama"
++spec:
++  replicas: 1
++  strategy:
++    type: RollingUpdate
++  selector:
++    matchLabels:
++      app: apm-server
++      release: "tazama"
++  template:
++    metadata:
++      labels:
++        app: apm-server
++        release: "tazama"
++      annotations:
++        
++        configChecksum: 6e58ddcf066000b0eaf4c36ee12fe92a47ec8c553d56d3de908ba8f526fbf2d
++    spec:
++      securityContext:
++          fsGroup: 1000
++          runAsGroup: 0
++          runAsUser: 1000
++      serviceAccountName: tazama-apm-server
++      volumes:
++        - name: apm-server-config
++          configMap:
++            name: tazama-apm-server-config
++            defaultMode: 0600
++      containers:
++      - name: apm-server
++        image: "docker.elastic.co/apm/apm-server:8.5.1"
++        imagePullPolicy: "IfNotPresent"
++        env:
++          
++          - name: ELASTICSEARCH_USERNAME
++            valueFrom:
++              secretKeyRef:
++                key: username
++                name: elasticsearch-master-credentials
++          - name: ELASTICSEARCH_PASSWORD
++            valueFrom:
++              secretKeyRef:
++                key: password
++                name: elasticsearch-master-credentials
++        securityContext:
++          privileged: false
++          runAsGroup: 0
++          runAsNonRoot: true
++          runAsUser: 1000
++        livenessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /
++            port: http
++          initialDelaySeconds: 30
++          periodSeconds: 10
++          timeoutSeconds: 5
++        readinessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /
++            port: http
++          initialDelaySeconds: 30
++          periodSeconds: 10
++          timeoutSeconds: 5
++        ports:
++          - containerPort: 8200
++            name: http
++        resources:
++          limits:
++            cpu: 1000m
++            memory: 512Mi
++          requests:
++            cpu: 100m
++            memory: 100Mi
++        volumeMounts:
++          - name: apm-server-config
++            mountPath: /usr/share/apm-server/apm-server.yml
++            subPath: apm-server.yml
++            readOnly: true
++---
++# Source: Tazama/charts/nats/templates/nats-box/deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  labels:
++    app.kubernetes.io/component: nats-box
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-box
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats-box
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++  template:
++    metadata:
++      labels:
++        app.kubernetes.io/component: nats-box
++        app.kubernetes.io/instance: tazama
++        app.kubernetes.io/managed-by: Helm
++        app.kubernetes.io/name: nats
++        app.kubernetes.io/version: 2.11.9
++        helm.sh/chart: nats-1.3.14
++    spec:
++      containers:
++      - args:
++        - sh
++        - -ec
++        - trap true INT TERM; sleep infinity & wait
++        command:
++        - sh
++        - -ec
++        - |
++          work_dir="$(pwd)"
++          mkdir -p "$XDG_CONFIG_HOME/nats"
++          cd "$XDG_CONFIG_HOME/nats"
++          if ! [ -s context ]; then
++            ln -s /etc/nats-contexts context
++          fi
++          if ! [ -f context.txt ]; then
++            echo -n "default" > context.txt
++          fi
++          cd "$work_dir"
++          exec /entrypoint.sh "$@"
++        - --
++        image: natsio/nats-box:0.18.0
++        name: nats-box
++        volumeMounts:
++        - mountPath: /etc/nats-contexts
++          name: contexts
++      enableServiceLinks: false
++      volumes:
++      - name: contexts
++        secret:
++          secretName: tazama-nats-box-contexts
++---
++# Source: Tazama/charts/pgadmin/templates/deployment.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: pgadmin
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: pgadmin
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: pgadmin
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app: pgadmin
++  template:
++    metadata:
++      labels:
++        app: pgadmin
++    spec:
++      containers:
++        - name: pgadmin
++          image: dpage/pgadmin4:latest
++          imagePullPolicy: IfNotPresent
++          env:
++            - name: PGADMIN_DEFAULT_EMAIL
++              value: admin@tazama.com
++            - name: PGADMIN_DEFAULT_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: pgadmin
++                  key: pgadmin-password
++          ports:
++            - containerPort: 80
++          volumeMounts:
++            - name: servers
++              subPath: servers.json
++              mountPath: /pgadmin4/servers.json
++      volumes:
++        - name: servers
++          configMap:
++            name: pgadmin-servers
++---
++# Source: Tazama/charts/postgres/templates/deployment.yaml
++# SPDX-License-Identifier: Apache-2.0
++
++# file: deployment.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: postgres
++  namespace: dom-test-2026
++  labels:
++    app.kubernetes.io/instance: postgres
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: postgres
++spec:
++  replicas: 1
++  selector:
++    matchLabels:
++      app: postgres
++  template:
++    metadata:
++      labels:
++        app: postgres
++    spec:
++      containers:
++        - name: postgres
++          image: postgres:latest
++          imagePullPolicy: IfNotPresent
++          env:
++            - name: POSTGRES_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++          ports:
++            - containerPort: 5432
++          volumeMounts:
++            - name: postgres-data
++              mountPath: /var/lib/postgres
++      volumes:
++        - name: postgres-data
++          persistentVolumeClaim:
++            claimName: postgres-pvc
++---
++# Source: Tazama/charts/valkey/templates/deploy_valkey.yaml
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: tazama-valkey
++  labels:
++    helm.sh/chart: valkey-0.7.7
++    app.kubernetes.io/name: valkey
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/version: "8.1.4"
++    app.kubernetes.io/managed-by: Helm
++spec:
++  replicas: 1
++  strategy:
++    type: RollingUpdate
++  selector:
++    matchLabels:
++      app.kubernetes.io/name: valkey
++      app.kubernetes.io/instance: tazama
++  template:
++    metadata:
++      labels:
++        app.kubernetes.io/name: valkey
++        app.kubernetes.io/instance: tazama
++        checksum/initconfig: 34821a9c5952b4b9340d394588c95e2f
++    spec:
++      automountServiceAccountToken: false
++      serviceAccountName: tazama-valkey
++      securityContext:
++        fsGroup: 1000
++        runAsGroup: 1000
++        runAsUser: 1000
++      
++      initContainers:
++        - name: valkey-init
++          image: "docker.io/valkey/valkey:8.1.4"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            capabilities:
++              drop:
++              - ALL
++            readOnlyRootFilesystem: true
++            runAsNonRoot: true
++            runAsUser: 1000
++          command: [ "/scripts/init.sh" ]
++          volumeMounts:
++            - name: valkey-data
++              mountPath: /data
++            - name: scripts
++              mountPath: /scripts
++
++      containers:
++        - name: tazama-valkey
++          image: "docker.io/valkey/valkey:8.1.4"
++          command: [ "valkey-server" ]
++          args: [ "/data/conf/valkey.conf" ]
++          securityContext:
++            capabilities:
++              drop:
++              - ALL
++            readOnlyRootFilesystem: true
++            runAsNonRoot: true
++            runAsUser: 1000
++          env:
++            - name: VALKEY_LOGLEVEL
++              value: "notice"
++          ports:
++            - name: tcp
++              containerPort: 6379
++              protocol: TCP
++          startupProbe:
++            exec:
++              command: [ "sh", "-c", "valkey-cli ping" ]
++          livenessProbe:
++            exec:
++              command: [ "sh", "-c", "valkey-cli ping" ]
++          resources:
++            {}
++          volumeMounts:
++            - name: valkey-data
++              mountPath: /data
++      volumes:
++        - name: scripts
++          configMap:
++            name: tazama-valkey-init-scripts
++            defaultMode: 0555
++        - name: valkey-data
++          emptyDir: {}
++---
++# Source: Tazama/charts/elasticsearch/templates/statefulset.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  name: elasticsearch-master
++  labels:
++    heritage: "Helm"
++    release: "tazama"
++    chart: "elasticsearch"
++    app: "elasticsearch-master"
++  annotations:
++    esMajorVersion: "8"
++spec:
++  serviceName: elasticsearch-master-headless
++  selector:
++    matchLabels:
++      app: "elasticsearch-master"
++  replicas: 3
++  podManagementPolicy: Parallel
++  updateStrategy:
++    type: RollingUpdate
++  volumeClaimTemplates:
++  - metadata:
++      name: elasticsearch-master
++    spec:
++      accessModes:
++      - ReadWriteOnce
++      resources:
++        requests:
++          storage: 30Gi
++  template:
++    metadata:
++      name: "elasticsearch-master"
++      labels:
++        release: "tazama"
++        chart: "elasticsearch"
++        app: "elasticsearch-master"
++      annotations:
++        
++    spec:
++      securityContext:
++        fsGroup: 1000
++        runAsUser: 1000
++      automountServiceAccountToken: true
++      affinity:
++        podAntiAffinity:
++          preferredDuringSchedulingIgnoredDuringExecution:
++          - weight: 1
++            podAffinityTerm:
++              topologyKey: kubernetes.io/hostname
++              labelSelector:
++                matchExpressions:
++                - key: app
++                  operator: In
++                  values:
++                  - "elasticsearch-master"
++      terminationGracePeriodSeconds: 120
++      volumes:
++        - name: elasticsearch-certs
++          secret:
++           secretName: elasticsearch-master-certs
++      enableServiceLinks: true
++      initContainers:
++      - name: configure-sysctl
++        securityContext:
++          runAsUser: 0
++          privileged: true
++        image: "docker.elastic.co/elasticsearch/elasticsearch:8.5.1"
++        imagePullPolicy: "IfNotPresent"
++        command: ["sysctl", "-w", "vm.max_map_count=262144"]
++        resources:
++          {}
++
++      containers:
++      - name: "elasticsearch"
++        securityContext:
++          capabilities:
++            drop:
++            - ALL
++          runAsNonRoot: true
++          runAsUser: 1000
++        image: "docker.elastic.co/elasticsearch/elasticsearch:8.5.1"
++        imagePullPolicy: "IfNotPresent"
++        readinessProbe:
++          exec:
++            command:
++              - bash
++              - -c
++              - |
++                set -e
++
++                # Exit if ELASTIC_PASSWORD in unset
++                if [ -z "${ELASTIC_PASSWORD}" ]; then
++                  echo "ELASTIC_PASSWORD variable is missing, exiting"
++                  exit 1
++                fi
++
++                # If the node is starting up wait for the cluster to be ready (request params: "wait_for_status=green&timeout=1s" )
++                # Once it has started only check that the node itself is responding
++                START_FILE=/tmp/.es_start_file
++
++                # Disable nss cache to avoid filling dentry cache when calling curl
++                # This is required with Elasticsearch Docker using nss < 3.52
++                export NSS_SDB_USE_CACHE=no
++
++                http () {
++                  local path="${1}"
++                  local args="${2}"
++                  set -- -XGET -s
++
++                  if [ "$args" != "" ]; then
++                    set -- "$@" $args
++                  fi
++
++                  set -- "$@" -u "elastic:${ELASTIC_PASSWORD}"
++
++                  curl --output /dev/null -k "$@" "https://127.0.0.1:9200${path}"
++                }
++
++                if [ -f "${START_FILE}" ]; then
++                  echo 'Elasticsearch is already running, lets check the node is healthy'
++                  HTTP_CODE=$(http "/" "-w %{http_code}")
++                  RC=$?
++                  if [[ ${RC} -ne 0 ]]; then
++                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} https://127.0.0.1:9200/ failed with RC ${RC}"
++                    exit ${RC}
++                  fi
++                  # ready if HTTP code 200, 503 is tolerable if ES version is 6.x
++                  if [[ ${HTTP_CODE} == "200" ]]; then
++                    exit 0
++                  elif [[ ${HTTP_CODE} == "503" && "8" == "6" ]]; then
++                    exit 0
++                  else
++                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} https://127.0.0.1:9200/ failed with HTTP code ${HTTP_CODE}"
++                    exit 1
++                  fi
++
++                else
++                  echo 'Waiting for elasticsearch cluster to become ready (request params: "wait_for_status=green&timeout=1s" )'
++                  if http "/_cluster/health?wait_for_status=green&timeout=1s" "--fail" ; then
++                    touch ${START_FILE}
++                    exit 0
++                  else
++                    echo 'Cluster is not yet ready (request params: "wait_for_status=green&timeout=1s" )'
++                    exit 1
++                  fi
++                fi
++          failureThreshold: 3
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 3
++          timeoutSeconds: 5
++        ports:
++        - name: http
++          containerPort: 9200
++        - name: transport
++          containerPort: 9300
++        resources:
++          limits:
++            cpu: 1000m
++            memory: 2Gi
++          requests:
++            cpu: 1000m
++            memory: 2Gi
++        env:
++          - name: node.name
++            valueFrom:
++              fieldRef:
++                fieldPath: metadata.name
++          - name: cluster.initial_master_nodes
++            value: "elasticsearch-master-0,elasticsearch-master-1,elasticsearch-master-2,"
++          - name: node.roles
++            value: "master,data,data_content,data_hot,data_warm,data_cold,ingest,ml,remote_cluster_client,transform,"
++          - name: discovery.seed_hosts
++            value: "elasticsearch-master-headless"
++          - name: cluster.name
++            value: "elasticsearch"
++          - name: network.host
++            value: "0.0.0.0"
++          - name: ELASTIC_PASSWORD
++            valueFrom:
++              secretKeyRef:
++                name: elasticsearch-master-credentials
++                key: password
++          - name: xpack.security.enabled
++            value: "true"
++          - name: xpack.security.transport.ssl.enabled
++            value: "true"
++          - name: xpack.security.http.ssl.enabled
++            value: "true"
++          - name: xpack.security.transport.ssl.verification_mode
++            value: "certificate"
++          - name: xpack.security.transport.ssl.key
++            value: "/usr/share/elasticsearch/config/certs/tls.key"
++          - name: xpack.security.transport.ssl.certificate
++            value: "/usr/share/elasticsearch/config/certs/tls.crt"
++          - name: xpack.security.transport.ssl.certificate_authorities
++            value: "/usr/share/elasticsearch/config/certs/ca.crt"
++          - name: xpack.security.http.ssl.key
++            value: "/usr/share/elasticsearch/config/certs/tls.key"
++          - name: xpack.security.http.ssl.certificate
++            value: "/usr/share/elasticsearch/config/certs/tls.crt"
++          - name: xpack.security.http.ssl.certificate_authorities
++            value: "/usr/share/elasticsearch/config/certs/ca.crt"
++        volumeMounts:
++          - name: "elasticsearch-master"
++            mountPath: /usr/share/elasticsearch/data
++          - name: elasticsearch-certs
++            mountPath: /usr/share/elasticsearch/config/certs
++            readOnly: true
++---
++# Source: Tazama/charts/jenkins/templates/jenkins-controller-statefulset.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  name: tazama-jenkins
++  namespace: dom-test-2026
++  labels:
++    "app.kubernetes.io/name": 'jenkins'
++    "app.kubernetes.io/managed-by": "Helm"
++    "app.kubernetes.io/instance": "tazama"
++    "app.kubernetes.io/component": "jenkins-controller"
++    "helm.sh/chart": "jenkins-5.8.86"
++spec:
++  serviceName: tazama-jenkins
++  replicas: 1
++  selector:
++    matchLabels:
++      "app.kubernetes.io/component": "jenkins-controller"
++      "app.kubernetes.io/instance": "tazama"
++  template:
++    metadata:
++      labels:
++        "app.kubernetes.io/name": 'jenkins'
++        "app.kubernetes.io/managed-by": "Helm"
++        "app.kubernetes.io/instance": "tazama"
++        "app.kubernetes.io/component": "jenkins-controller"
++        "helm.sh/chart": "jenkins-5.8.86"
++      annotations:
++        checksum/config: 29c4743e00261e40627b0d02f57f2095f5743450872583edae889101cb063b12
++    spec:
++      enableServiceLinks: false
++      securityContext:
++    
++        runAsUser: 1000
++        fsGroup: 1000
++        runAsNonRoot: true
++      serviceAccountName: "tazama-jenkins"
++      automountServiceAccountToken: true
++      initContainers:
++        - name: config-reload-init
++          image: "docker.io/kiwigrid/k8s-sidecar:1.30.7"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++          env:
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: LABEL
++              value: "tazama-jenkins-jenkins-config"
++            - name: FOLDER
++              value: "/var/jenkins_home/casc_configs"
++            - name: NAMESPACE
++              value: 'dom-test-2026'
++            - name: METHOD
++              value: "LIST"
++        
++          resources:
++            {}
++          volumeMounts:
++            - name: sc-config-volume
++              mountPath: "/var/jenkins_home/casc_configs"
++            - name: jenkins-home
++              mountPath: /var/jenkins_home
++
++        - name: "init"
++          image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++          imagePullPolicy: "Always"
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++            runAsGroup: 1000
++            runAsUser: 1000
++          command: [ "sh", "/var/jenkins_config/apply_config.sh" ]
++          resources:
++            limits:
++              cpu: 2000m
++              memory: 4096Mi
++            requests:
++              cpu: 50m
++              memory: 256Mi
++          volumeMounts:
++            - mountPath: /var/jenkins_home
++              name: jenkins-home
++            - mountPath: /var/jenkins_config
++              name: jenkins-config
++            - mountPath: /usr/share/jenkins/ref/plugins
++              name: plugins
++            - mountPath: /var/jenkins_plugins
++              name: plugin-dir
++            - mountPath: /tmp
++              name: tmp-volume
++      containers:
++        - name: jenkins
++          image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++          imagePullPolicy: "Always"
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++            runAsGroup: 1000
++            runAsUser: 1000
++          args: [ "--httpPort=8080"]
++          env:
++            - name: SECRETS
++              value: /run/secrets/additional
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: JAVA_OPTS
++              value: >-
++                 -Dcasc.reload.token=$(POD_NAME) 
++            - name: JENKINS_OPTS
++              value: >-
++                 --webroot=/var/jenkins_cache/war 
++            - name: JENKINS_SLAVE_AGENT_PORT
++              value: "50000"
++
++            - name: CASC_JENKINS_CONFIG
++              value: /var/jenkins_home/casc_configs
++          ports:
++            - containerPort: 8080
++              name: http
++            - containerPort: 50000
++              name: agent-listener
++          startupProbe:
++            failureThreshold: 12
++            httpGet:
++              path: '/login'
++              port: http
++            periodSeconds: 10
++            timeoutSeconds: 5
++          livenessProbe:
++            failureThreshold: 5
++            httpGet:
++              path: '/login'
++              port: http
++            initialDelaySeconds: null
++            periodSeconds: 10
++            timeoutSeconds: 5
++          readinessProbe:
++            failureThreshold: 3
++            httpGet:
++              path: '/login'
++              port: http
++            initialDelaySeconds: null
++            periodSeconds: 10
++            timeoutSeconds: 5
++          resources:
++            limits:
++              cpu: 2000m
++              memory: 4096Mi
++            requests:
++              cpu: 50m
++              memory: 256Mi
++          volumeMounts:
++            - mountPath: /var/jenkins_home
++              name: jenkins-home
++              readOnly: false
++            - mountPath: /var/jenkins_config
++              name: jenkins-config
++              readOnly: true
++            - mountPath: /usr/share/jenkins/ref/plugins/
++              name: plugin-dir
++              readOnly: false
++            - name: sc-config-volume
++              mountPath: /var/jenkins_home/casc_configs
++            - name: jenkins-secrets
++              mountPath: /run/secrets/additional
++              readOnly: true
++            - name: jenkins-cache
++              mountPath: /var/jenkins_cache
++            - mountPath: /tmp
++              name: tmp-volume
++        - name: config-reload
++          image: "docker.io/kiwigrid/k8s-sidecar:1.30.7"
++          imagePullPolicy: IfNotPresent
++          securityContext:
++            allowPrivilegeEscalation: false
++            readOnlyRootFilesystem: true
++          env:
++            - name: POD_NAME
++              valueFrom:
++                fieldRef:
++                  fieldPath: metadata.name
++            - name: LABEL
++              value: "tazama-jenkins-jenkins-config"
++            - name: FOLDER
++              value: "/var/jenkins_home/casc_configs"
++            - name: NAMESPACE
++              value: 'dom-test-2026'
++            - name: REQ_URL
++              value: "http://localhost:8080/reload-configuration-as-code/?casc-reload-token=$(POD_NAME)"
++            - name: REQ_METHOD
++              value: "POST"
++            - name: REQ_RETRY_CONNECT
++              value: "10"
++        
++          resources:
++            {}
++          volumeMounts:
++            - name: sc-config-volume
++              mountPath: "/var/jenkins_home/casc_configs"
++            - name: jenkins-home
++              mountPath: /var/jenkins_home
++
++      volumes:
++      - name: plugins
++        emptyDir: {}
++      - name: jenkins-config
++        configMap:
++          name: tazama-jenkins
++      - name: plugin-dir
++        emptyDir: {}
++      - name: jenkins-secrets
++        projected:
++          sources:
++          - secret:
++              name: tazama-jenkins
++              items:
++                - key: jenkins-admin-user
++                  path: chart-admin-username
++                - key: jenkins-admin-password
++                  path: chart-admin-password
++      - name: jenkins-cache
++        emptyDir: {}
++      - name: jenkins-home
++        persistentVolumeClaim:
++          claimName: tazama-jenkins
++      - name: sc-config-volume
++        emptyDir: {}
++      - name: tmp-volume
++        emptyDir: {}
++---
++# Source: Tazama/charts/nats/templates/stateful-set.yaml
++apiVersion: apps/v1
++kind: StatefulSet
++metadata:
++  labels:
++    app.kubernetes.io/component: nats
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats
++spec:
++  podManagementPolicy: Parallel
++  replicas: 1
++  selector:
++    matchLabels:
++      app.kubernetes.io/component: nats
++      app.kubernetes.io/instance: tazama
++      app.kubernetes.io/name: nats
++  serviceName: tazama-nats-headless
++  template:
++    metadata:
++      annotations:
++        checksum/config: 9272ab7979cec4022ae9301d165c204127a26d8a2d2348b944ccd1034ca0d284
++      labels:
++        app.kubernetes.io/component: nats
++        app.kubernetes.io/instance: tazama
++        app.kubernetes.io/managed-by: Helm
++        app.kubernetes.io/name: nats
++        app.kubernetes.io/version: 2.11.9
++        helm.sh/chart: nats-1.3.14
++    spec:
++      containers:
++      - args:
++        - --config
++        - /etc/nats-config/nats.conf
++        env:
++        - name: POD_NAME
++          valueFrom:
++            fieldRef:
++              fieldPath: metadata.name
++        - name: SERVER_NAME
++          value: $(POD_NAME)
++        image: nats:2.11.9-alpine
++        lifecycle:
++          preStop:
++            exec:
++              command:
++              - nats-server
++              - -sl=ldm=/var/run/nats/nats.pid
++        livenessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /healthz?js-enabled-only=true
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 30
++          successThreshold: 1
++          timeoutSeconds: 5
++        name: nats
++        ports:
++        - containerPort: 4222
++          name: nats
++        - containerPort: 8222
++          name: monitor
++        readinessProbe:
++          failureThreshold: 3
++          httpGet:
++            path: /healthz?js-server-only=true
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 1
++          timeoutSeconds: 5
++        startupProbe:
++          failureThreshold: 90
++          httpGet:
++            path: /healthz
++            port: monitor
++          initialDelaySeconds: 10
++          periodSeconds: 10
++          successThreshold: 1
++          timeoutSeconds: 5
++        volumeMounts:
++        - mountPath: /etc/nats-config
++          name: config
++        - mountPath: /var/run/nats
++          name: pid
++      - args:
++        - -pid
++        - /var/run/nats/nats.pid
++        - -config
++        - /etc/nats-config/nats.conf
++        image: natsio/nats-server-config-reloader:0.19.1
++        name: reloader
++        volumeMounts:
++        - mountPath: /var/run/nats
++          name: pid
++        - mountPath: /etc/nats-config
++          name: config
++      enableServiceLinks: false
++      shareProcessNamespace: true
++      terminationGracePeriodSeconds: 60
++      volumes:
++      - configMap:
++          name: tazama-nats-config
++        name: config
++      - emptyDir: {}
++        name: pid
++  volumeClaimTemplates: null
++---
++# Source: Tazama/charts/pgadmin/templates/service.yaml
++# SPDX-License-Identifier: Apache-2.0
++---
++# Source: Tazama/charts/postgres/templates/service.yaml
++# SPDX-License-Identifier: Apache-2.0
++---
++# Source: Tazama/charts/jenkins/templates/tests/test-config.yaml
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: tazama-jenkins-tests
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": test
++data:
++  run.sh: |-
++    @test "Testing Jenkins UI is accessible" {
++      curl --retry 48 --retry-delay 10 tazama-jenkins:8080/login
++    }
++---
++# Source: Tazama/charts/elasticsearch/templates/test/test-elasticsearch-health.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  name: "tazama-yzubj-test"
++  annotations:
++    "helm.sh/hook": test
++    "helm.sh/hook-delete-policy": hook-succeeded
++spec:
++  securityContext:
++    fsGroup: 1000
++    runAsUser: 1000
++  containers:
++  - name: "tazama-uztig-test"
++    env:
++      - name: ELASTIC_PASSWORD
++        valueFrom:
++          secretKeyRef:
++            name: elasticsearch-master-credentials
++            key: password
++    image: "docker.elastic.co/elasticsearch/elasticsearch:8.5.1"
++    imagePullPolicy: "IfNotPresent"
++    command:
++      - "sh"
++      - "-c"
++      - |
++        #!/usr/bin/env bash -e
++        curl -XGET --fail --cacert /usr/share/elasticsearch/config/certs/tls.crt -u "elastic:${ELASTIC_PASSWORD}" https://'elasticsearch-master:9200/_cluster/health?wait_for_status=green&timeout=1s'
++    volumeMounts:
++      - name: elasticsearch-certs
++        mountPath: /usr/share/elasticsearch/config/certs
++        readOnly: true
++  restartPolicy: Never
++  volumes:
++    - name: elasticsearch-certs
++      secret:
++        secretName: elasticsearch-master-certs
++---
++# Source: Tazama/charts/jenkins/templates/tests/jenkins-test.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  name: "tazama-ui-test-bp8vp"
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": test-success
++spec:
++  initContainers:
++    - name: "test-framework"
++      image: "docker.io/bats/bats:1.12.0"
++      command:
++        - "bash"
++        - "-c"
++      args:
++        - |
++          # copy bats to tools dir
++          set -ex
++          cp -R /opt/bats /tools/bats/
++      volumeMounts:
++      - mountPath: /tools
++        name: tools
++  containers:
++    - name: tazama-ui-test
++      image: "docker.io/jenkins/jenkins:2.516.2-jdk21"
++      command: ["/tools/bats/bin/bats", "-t", "/tests/run.sh"]
++      volumeMounts:
++      - mountPath: /tests
++        name: tests
++        readOnly: true
++      - mountPath: /tools
++        name: tools
++  volumes:
++  - name: tests
++    configMap:
++      name: tazama-jenkins-tests
++  - name: tools
++    emptyDir: {}
++  restartPolicy: Never
++---
++# Source: Tazama/charts/nats/templates/tests/request-reply.yaml
++apiVersion: v1
++kind: Pod
++metadata:
++  annotations:
++    helm.sh/hook: test
++    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
++  labels:
++    app.kubernetes.io/component: test-request-reply
++    app.kubernetes.io/instance: tazama
++    app.kubernetes.io/managed-by: Helm
++    app.kubernetes.io/name: nats
++    app.kubernetes.io/version: 2.11.9
++    helm.sh/chart: nats-1.3.14
++  name: tazama-nats-test-request-reply
++spec:
++  containers:
++  - args:
++    - sh
++    - -ec
++    - nats reply --echo echo & pid="$!"; sleep 1; nats request echo hi > /tmp/resp;
++      kill "$pid"; wait; grep -qF hi /tmp/resp
++    command:
++    - sh
++    - -ec
++    - |
++      work_dir="$(pwd)"
++      mkdir -p "$XDG_CONFIG_HOME/nats"
++      cd "$XDG_CONFIG_HOME/nats"
++      if ! [ -s context ]; then
++        ln -s /etc/nats-contexts context
++      fi
++      if ! [ -f context.txt ]; then
++        echo -n "default" > context.txt
++      fi
++      cd "$work_dir"
++      exec /entrypoint.sh "$@"
++    - --
++    image: natsio/nats-box:0.18.0
++    name: nats-box
++    volumeMounts:
++    - mountPath: /etc/nats-contexts
++      name: contexts
++  enableServiceLinks: false
++  restartPolicy: Never
++  volumes:
++  - name: contexts
++    secret:
++      secretName: tazama-nats-box-contexts
++---
++# Source: Tazama/charts/postgres/templates/job-migrate.yaml
++apiVersion: batch/v1
++kind: Job
++metadata:
++  name: postgres-migrate
++  namespace: dom-test-2026
++  annotations:
++    "helm.sh/hook": post-install,post-upgrade
++    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
++spec:
++  template:
++    spec:
++      restartPolicy: Never
++      containers:
++        - name: migrate
++          image: postgres:16
++          env:
++            - name: PGPASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++            - name: POSTGRES_PASSWORD
++              valueFrom:
++                secretKeyRef:
++                  name: postgres
++                  key: admin-password
++          command: ["psql"]
++          args:
++            [
++              "-h","postgres",
++              "-U","postgres",
++              "-d","postgres",
++              "-v","ON_ERROR_STOP=1",
++              "-f","/work/01_migrate.sql"
++            ]
++          volumeMounts:
++            - name: migrate-sql
++              mountPath: /work
++      volumes:
++        - name: migrate-sql
++          configMap:
++            name: postgres-migrate-sql
+diff --git a/Infrastructure/values-jenkins.yaml b/Infrastructure/values-jenkins.yaml
+index a6cc394..fdf9844 100644
+--- a/Infrastructure/values-jenkins.yaml
++++ b/Infrastructure/values-jenkins.yaml
+@@ -1294,7 +1294,7 @@ jenkins:
+     # If undefined (the default) or set to null, no storageClassName spec is
+     #   set, choosing the default provisioner (gp2 on AWS, standard on GKE, AWS & OpenStack)
+     # -- Storage class for the PVC
+-    storageClass:
++    storageClass: longhorn-single
+     # -- Annotations for the PVC
+     annotations: {}
+     # -- Labels for the PVC
+@@ -1302,7 +1302,7 @@ jenkins:
+     # -- The PVC access mode
+     accessMode: "ReadWriteOnce"
+     # -- The size of the PVC
+-    size: "8Gi"
++    size: "2Gi"
+ 
+     # ref: https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/
+     # -- Existing data source to clone PVC from
+diff --git a/Infrastructure/values-nats.yaml b/Infrastructure/values-nats.yaml
+index f3ba9b6..2de89a9 100644
+--- a/Infrastructure/values-nats.yaml
++++ b/Infrastructure/values-nats.yaml
+@@ -54,7 +54,7 @@ nats:
+       enabled: false
+       port: 6222
+       # must be 2 or higher when jetstream is enabled
+-      replicas: 3
++      replicas: 1
+ 
+       # apply to generated route URLs that connect to other pods in the StatefulSet
+       routeURLs:
+diff --git a/Infrastructure/values-postgres.yaml b/Infrastructure/values-postgres.yaml
+index ae83160..927a0a3 100644
+--- a/Infrastructure/values-postgres.yaml
++++ b/Infrastructure/values-postgres.yaml
+@@ -3,7 +3,7 @@ postgres:
+ # file: values.yaml
+   image:
+     repository: postgres
+-    tag: latest
++    tag: 16
+     pullPolicy: IfNotPresent
+     
+   postgres:
+@@ -11,8 +11,8 @@ postgres:
+     password:
+     replicas: 1
+     storage:
+-      size: 15Gi
+-      class: standard
++      size: 5Gi
++      class: longhorn-single
+ 
+   service:
+     type: ClusterIP
+diff --git a/Infrastructure/values.yaml b/Infrastructure/values.yaml
+index 0eb0000..82faf64 100644
+--- a/Infrastructure/values.yaml
++++ b/Infrastructure/values.yaml
+@@ -11,7 +11,7 @@ tazama:
+     enabled: true
+ 
+   elasticsearch:
+-    enabled: true
++    enabled: false
+ 
+   prometheus:
+     enabled: false
+@@ -23,10 +23,10 @@ tazama:
+     enabled: false
+ 
+   apm-server:
+-    enabled: true
++    enabled: false
+ 
+   keycloak:
+     enabled: false
+ 
+   valkey:
+-    enable: true
+\ No newline at end of file
++    enabled: true

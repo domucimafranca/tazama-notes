@@ -1,0 +1,73 @@
+commit 1a26d3f9cbf9c1aca4a10459f5f00a3f90d400fd
+Author: Dom Cimafranca <domu@cimafranca.com>
+Date:   Thu May 14 11:40:32 2026 +0800
+
+    Updated Jenkins plugins to remove errors
+
+diff --git a/Infrastructure/values-jenkins.yaml b/Infrastructure/values-jenkins.yaml
+index fdf9844..4823a66 100644
+--- a/Infrastructure/values-jenkins.yaml
++++ b/Infrastructure/values-jenkins.yaml
+@@ -410,7 +410,6 @@ jenkins:
+     # -- List of Jenkins plugins to install. If you don't want to install plugins, set it to `false`
+     installPlugins:
+       - kubernetes:4371.vb_33b_086d54a_1
+-      - workflow-aggregator:608.v67378e9d3db_1
+       - git:5.7.0
+       - configuration-as-code:1985.vdda_32d0c4ea_b_
+       - azure-vm-agents:901.ved986df424b_3
+@@ -420,7 +419,7 @@ jenkins:
+       - azure-keyvault:237.v301692369180
+       - azure-sdk:157.v855da_0b_eb_dc2
+       - command-launcher:107.v773860566e2e
+-      - config-file-provider:968.ve1ca_eb_913f8c
++      - config-file-provider:980.v88956a_a_5d6a_d
+       - docker-commons:457.v0f62a_94f11a_3
+       - github-api:1.321-488.v9b_c0da_9533f8
+       - github-branch-source:1772.va_69eda_d018d4
+@@ -429,7 +428,7 @@ jenkins:
+       - kubernetes-cli:1.12.1
+       - kubernetes-pipeline-devops-steps:1.6
+       - kubernetes-credentials-provider:1.258.v95949f923a_a_e
+-      - nodejs:1.6.1
++      - nodejs:1.6.4
+       - npm-yarn-wrapper-steps:0.4.0
+       - pipeline-graph-analysis:202.va_d268e64deb_3
+       - pipeline-npm:204.v4dc4c2202625
+@@ -440,17 +439,24 @@ jenkins:
+       - token-macro:444.v52de7e9c573d
+       - dark-theme:416.v535839b_c4e88
+       - jobConfigHistory:1229.v3039470161a_d
++      - apache-httpcomponents-client-4-api:4.5.14-269.vfa_2321039a_83
+       # - cloudbees-folder:6.858.v898218f3609d
+ 
+     # If set to false, Jenkins will download the minimum required version of all dependencies.
+     # -- Download the minimum required version or latest version of all dependencies
+-    installLatestPlugins: false
++    installLatestPlugins: true
+ 
+     # -- Set to true to download the latest version of any plugin that is requested to have the latest version
+-    installLatestSpecifiedPlugins: false
++    installLatestSpecifiedPlugins: true
+ 
+     # -- List of plugins to install in addition to those listed in controller.installPlugins
+-    additionalPlugins: []
++    additionalPlugins: 
++      - eddsa-api:0.3.0-4.v84c6f0f4969e
++      - scm-api:704.v3ce5c542825a_
++      - script-security:1373.vb_b_4a_a_c26fa_00
++      - junit:1240.vf9529b_881428
++      - workflow-support:963.va_600813d04a_a_
++      - workflow-scm-step:437.v05a_f66b_e5ef8
+ 
+     # Without this; whenever the controller gets restarted (Evicted, etc.) it will fetch plugin updates that have the potential to cause breakage.
+     # Note that for this to work, `persistence.enabled` needs to be set to `true`
+@@ -459,7 +465,7 @@ jenkins:
+ 
+     # Enable to always override the installed plugins with the values of 'controller.installPlugins' on upgrade or redeployment.
+     # -- Overwrite installed plugins on start
+-    overwritePlugins: false
++    overwritePlugins: true
+ 
+     # Configures if plugins bundled with `controller.image` should be overwritten with the values of 'controller.installPlugins' on upgrade or redeployment.
+     # -- Overwrite plugins that are already installed in the controller image
